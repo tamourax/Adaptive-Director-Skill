@@ -1,1 +1,0 @@
-{"version":3,"file":"native-executor.d.ts","sourceRoot":"","sources":["../../src/execution/native-executor.ts"],"names":[],"mappings":"AAKA,OAAO,KAAK,EAAE,UAAU,EAAE,WAAW,EAA2B,MAAM,mBAAmB,CAAA;AACzF,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,eAAe,CAAA;AA4E9C,qBAAa,cAAe,YAAW,SAAS;IACxC,GAAG,CAAC,KAAK,EAAE,UAAU,EAAE,KAAK,EAAE,MAAM,EAAE,OAAO,EAAE,MAAM,GAAG,OAAO,CAAC,WAAW,CAAC;CAmDnF"}
