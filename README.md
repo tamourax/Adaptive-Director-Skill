@@ -1,422 +1,298 @@
 # Adaptive Orchestrator
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#architecture)
-[![Architecture](https://img.shields.io/badge/architecture-skill--first-orange.svg)](#overview)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#skill-first-architecture)
+[![Architecture](https://img.shields.io/badge/architecture-skill--first-orange.svg)](#skill-first-architecture)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **One task in. The right agents take it from there.**
 
-**Adaptive Orchestrator** is a lightweight, skill-first orchestration layer for AI coding agents. Instead of running an entire development task through a single agent, a single model, and a static reasoning budget, Adaptive Orchestrator dynamically routes each phase—**Planning, Implementation, Review, Fixing, and Verification**—to the most qualified agent, model, and reasoning effort.
+Adaptive Orchestrator is a skill-first orchestration layer for AI coding agents. Give it one development task and it routes planning, implementation, review, and verification to the right available agent, model, and reasoning effort.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [The Problem](#the-problem)
-- [Architecture & Diagrams](#architecture--diagrams)
-  - [1. End-to-End Execution Flow](#1-end-to-end-execution-flow)
-  - [2. System Architecture](#2-system-architecture)
-  - [3. Decision & Priority Chain](#3-decision--priority-chain)
-  - [4. Workspace & Handoff Isolation](#4-workspace--handoff-isolation)
-- [Core Principles](#core-principles)
-- [Directory Structure](#directory-structure)
-- [Quick Start](#quick-start)
-- [CLI Scripts Reference](#cli-scripts-reference)
-- [Configuration & Overrides](#configuration--overrides)
-- [Integration with delegate-skills](#integration-with-delegate-skills)
-- [License](#license)
-
----
-
-## Overview
-
-Modern coding agents often suffer from two extremes:
-1. **Under-resourced execution:** Complex planning and security reviews are handled by weak models or low effort, producing broken designs or overlooked vulnerabilities.
-2. **Over-resourced waste:** Simple file edits or mechanical fixes consume costly high/max reasoning tokens.
-
-Adaptive Orchestrator solves this by sitting as the **decision brain** above your local coding agents:
+Instead of using one expensive model for everything—or trusting a weak agent with architecture and review—it uses stronger reasoning only where it matters and specialized coding agents where they fit best.
 
 ```text
                User Task
-                   │
-                   ▼
-┌──────────────────────────────────────┐
-│        Adaptive Orchestrator         │
-│  (Skill Brain + Deterministic Core)  │
-└──────────────────┬───────────────────┘
-                   │
-  ┌────────────────┼────────────────┐
-  ▼                ▼                ▼
-Plan           Implement          Review
-(Strong Agent) (Coding Specialist)(Independent Agent)
-High Effort    Medium Effort      High Effort
+                   ↓
+         Adaptive Orchestrator
+                   ↓
+Plan  →  Implement  →  Review  →  Verify
+ ↓           ↓            ↓
+Best        Best     Independent
+Agent       Coder     Reviewer
 ```
 
 ---
 
-## The Problem
+## Why Adaptive Orchestrator?
 
-```mermaid
-flowchart TD
-  subgraph Traditional["❌ Traditional Single-Agent Execution"]
-    T1[User Task] --> A1[Single Agent / Fixed Model]
-    A1 --> P1[Plan]
-    P1 --> I1[Implement]
-    I1 --> R1[Self-Review: High Blind-Spot Risk]
-    R1 --> C1[Commit without Independent Verification]
-  end
+Most multi-agent coding workflows hit three common bottlenecks:
 
-  subgraph Adaptive["✅ Adaptive Orchestrator Execution"]
-    T2[User Task] --> AO[Adaptive Orchestrator]
-    AO --> P2["Plan: Strongest Reasoning (e.g. Claude / Opus / o3)"]
-    P2 --> I2["Implement: Fast Coding Specialist (e.g. Codex / OpenCode)"]
-    I2 --> R2["Review: Strict Independent Reviewer (e.g. Claude / Sonnet)"]
-    R2 --> F2{"Critical Findings?"}
-    F2 -- Yes --> FX["Fix Loop (Max 1 Cycle)"]
-    FX --> R2
-    F2 -- No --> V2["Verify: Project-Aware Tests & Gates"]
-    V2 --> D2[Final Human Review & Landing]
-  end
-```
-
----
-
-## Architecture & Diagrams
-
-### 1. End-to-End Execution Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Orchestrator as Adaptive Orchestrator (SKILL.md)
-    participant Scripts as Deterministic Scripts (MJS)
-    participant Planner as Planner Agent
-    participant Coder as Implementer Agent
-    participant Reviewer as Independent Reviewer
-    participant Verifier as Project Verifier
-
-    User->>Orchestrator: "Implement Stripe in Flutter"
-    Orchestrator->>Scripts: route.mjs (taskSize=medium, budget=balanced)
-    Scripts-->>Orchestrator: Phase routes (Plan, Impl, Review, Verify)
-    Orchestrator->>Scripts: run-state.mjs init --task ...
-    
-    rect rgb(240, 248, 255)
-      Note over Orchestrator,Planner: Phase 1: Planning
-      Orchestrator->>Scripts: run-state.mjs build-brief --phase plan
-      Orchestrator->>Planner: Dispatch brief
-      Planner-->>Orchestrator: Detailed plan + repo inspection
-      Orchestrator->>Scripts: run-state.mjs write-phase plan
-    end
-
-    rect rgb(245, 255, 245)
-      Note over Orchestrator,Coder: Phase 2: Implementation
-      Orchestrator->>Scripts: run-state.mjs build-brief --phase implement
-      Orchestrator->>Coder: Dispatch plan + constraints (isolated brief)
-      Coder-->>Orchestrator: Code changes + touched files (uncommitted)
-      Orchestrator->>Scripts: run-state.mjs write-phase implement
-    end
-
-    rect rgb(255, 250, 240)
-      Note over Orchestrator,Reviewer: Phase 3: Independent Review
-      Orchestrator->>Scripts: run-state.mjs build-brief --phase review
-      Orchestrator->>Reviewer: Dispatch plan + implementation report + diff
-      Reviewer-->>Orchestrator: Severity findings (Critical / Warning / Suggestion)
-      Orchestrator->>Scripts: run-state.mjs write-phase review
-    end
-
-    alt Critical Findings Detected
-      Note over Orchestrator,Coder: Automatic Fix Cycle (1 cycle limit)
-      Orchestrator->>Coder: Fix only critical issues
-      Coder-->>Orchestrator: Fixes applied
-      Orchestrator->>Reviewer: Re-review fixes
-    end
-
-    rect rgb(240, 255, 255)
-      Note over Orchestrator,Verifier: Phase 4: Final Verification
-      Orchestrator->>Verifier: Run flutter analyze && flutter test
-      Verifier-->>Orchestrator: Pass / Fail
-    end
-
-    Orchestrator->>User: Final Verified Status & Summary
-```
-
----
-
-### 2. System Architecture
-
-The project adheres to a strict separation between **agent reasoning** and **deterministic script execution**:
-
-```mermaid
-graph TB
-    subgraph SkillLayer["🧠 Skill Layer (Intelligence)"]
-        SKILL["SKILL.md<br/>• Understands user intent<br/>• Prompts agents with bounded briefs<br/>• Enforces review loop boundaries<br/>• Coordinates execution"]
-    end
-
-    subgraph ScriptLayer["⚙️ Deterministic Scripts (Node.js Built-ins Only)"]
-        DISCOVER["discover.mjs<br/>Detects CLIs & Fleets"]
-        ROUTE["route.mjs<br/>Applies 4-level Priority Rules"]
-        STATE["run-state.mjs<br/>Atomic Run Workspaces & Briefs"]
-        RESUME["resume.mjs<br/>State Recovery & Replay"]
-    end
-
-    subgraph DataLayer["📁 Data & Rules"]
-        REGISTRY["data/registry.json<br/>Model Capability Scores"]
-        REFS["references/*.md<br/>Specs & Schemas"]
-        CONFIG["~/.adaptive-orchestrator/config.yaml<br/>User Overrides"]
-    end
-
-    subgraph ExecutionTargets["🚀 Local Execution Channels"]
-        NATIVE["Native Agents<br/>(Sub-agents, CLI spawn)"]
-        DELEGATE["delegate-skills Relays<br/>(Codex, Claude, Cursor, Aider, OpenCode...)"]
-    end
-
-    SKILL --> ROUTE
-    SKILL --> STATE
-    SKILL --> RESUME
-    ROUTE --> REGISTRY
-    ROUTE --> CONFIG
-    DISCOVER --> ExecutionTargets
-    SKILL --> NATIVE
-    SKILL -.->|--delegate opt-in| DELEGATE
-```
-
----
-
-### 3. Decision & Priority Chain
-
-Routing decisions are completely deterministic. `route.mjs` evaluates options strictly in this priority order:
-
-```mermaid
-flowchart TD
-    Start([Route Phase Request]) --> C1{1. User Explicit Override?<br/>config.yaml}
-    C1 -- Yes --> R1[Apply User Override]
-    C1 -- No --> C2{2. --delegate enabled AND<br/>matching fleet lane exists?}
-    C2 -- Yes --> R2[Apply Delegate Lane]
-    C2 -- No --> C3{3. Built-in Capability Registry<br/>meets phase requirements?}
-    C3 -- Yes --> R3[Select Best Matching Agent by Score]
-    C3 -- No --> R4[Fallback: Default Agent]
-
-    R1 --> ApplyEffort[Calculate Effort from Budget Policy]
-    R2 --> ApplyEffort
-    R3 --> ApplyEffort
-    R4 --> ApplyEffort
-
-    ApplyEffort --> MaxCheck{Effort is MAX and<br/>--allow-max is NOT set?}
-    MaxCheck -- Yes --> CapEffort[Cap effort to HIGH]
-    MaxCheck -- No --> Output[Emit JSON Routing Decision]
-    CapEffort --> Output
-```
-
----
-
-### 4. Workspace & Handoff Isolation
-
-Agents do **not** inherit massive, messy conversational transcripts. Instead, each run generates a self-contained workspace inside `.adaptive-orchestrator/runs/<run-id>/`:
-
-```
-.adaptive-orchestrator/runs/run-119894fa/
-├── metadata.json          <-- Machine state: status, current phase, timestamps
-├── task.md                <-- Pristine user requirements & boundary constraints
-├── plan.md / plan.json    <-- Structured architectural decisions & checklist
-├── implementation.md/json <-- Modified files, notes, and uncommitted diffs
-├── review.md / .json      <-- Independent critique categorized by severity
-└── final.md / final.json  <-- Verification verdicts & automated gate results
-```
-
-```mermaid
-flowchart LR
-    T[task.md] --> PLAN[Planner Agent]
-    PLAN --> P[plan.md / plan.json]
-    
-    T --> IMPL[Implementer Agent]
-    P --> IMPL
-    IMPL --> I[implementation.md / json]
-    
-    T --> REV[Independent Reviewer]
-    P --> REV
-    I --> REV
-    REV --> R[review.md / json]
-    
-    R --> VER[Verifier]
-    VER --> F[final.md / json]
-```
-
----
-
-## Core Principles
-
-| Principle | Description |
-|-----------|-------------|
-| **Pure Node.js Built-ins** | Zero runtime `npm` dependencies. No network callers, no credential handlers, no telemetry. Pure standard library (`node:fs`, `node:child_process`, `node:path`). |
-| **Independent Review** | The implementer agent is **never** permitted to review its own code. Blind spots are caught by a fresh, unpolluted context. |
-| **Severity Gate** | Findings are categorized as `CRITICAL` (must fix), `WARNING` (logged, non-blocking), or `SUGGESTION` (informational). |
-| **Runaway Loop Protection** | Exactly **one** automatic fix and re-review cycle. If critical issues persist, the status changes to `Blocked` and requires user oversight. |
-| **Max Reasoning Opt-in** | `max` reasoning is disabled by default to safeguard quotas. It can only be unlocked explicitly via `--allow-max`. |
-| **Budget Awareness** | Three explicit budget modes: `conservative` (cost-optimized), `balanced` (recommended default), and `quality` (rigorous). |
-| **No Auto-Commits** | Relays and implementers leave changes in the working tree. Committing belongs exclusively to the user or orchestrator after review. |
-
----
-
-## Directory Structure
+1. **Weak models on critical phases:** A session started with a fast or lightweight model might attempt complex architectural planning or security review by itself.
+2. **Wasted reasoning tokens:** Running every mechanical edit or typo fix on maximum reasoning effort burns quota without improving output quality.
+3. **Manual coordination fatigue:** Developers spend time manually typing: *"Now plan... now code this file... now review your own work... now fix this."*
 
 ```text
-adaptive-orchestrator/
-├── SKILL.md                          # The brain: instructions and operational behavior
-├── README.md                         # Complete documentation and architecture guide
-├── package.json                      # Command shortcuts and project metadata
-├── .gitignore                        # Ignores runtime workspaces and transient artifacts
-│
-├── scripts/                          # Deterministic Node.js scripts (zero dependencies)
-│   ├── discover.mjs                  # Detects installed coding agent CLIs & delegate fleets
-│   ├── setup.mjs                     # Interactive environment inspection & config generator
-│   ├── route.mjs                     # Deterministic routing engine (JSON in -> JSON out)
-│   ├── run-state.mjs                 # Workspace manager (init, update, write, build-brief)
-│   ├── resume.mjs                    # Locates interrupted runs for graceful recovery
-│   └── smoke-test.mjs                # Automated verification suite for the skill scripts
-│
-├── references/                       # Technical specs and schemas
-│   ├── capability-registry.md        # Model score rubrics & phase thresholds
-│   ├── routing-rules.md              # Heuristics, phase maps & agent priority lists
-│   ├── handoff-schema.md             # File contract definitions (md + json)
-│   └── delegate-integration.md       # delegate-skills integration protocol
-│
-└── data/
-    └── registry.json                 # Canonical capability database
+Without Adaptive Orchestrator:
+Task → Same Agent → Same Model → Same Effort → Self-Review (blind spots)
+
+With Adaptive Orchestrator:
+Task → Plan: Reasoning-focused → Implement: Coding-focused → Review: Independent → Verify: Automated
 ```
+
+---
+
+## What It Does
+
+| Phase | Adaptive Decision |
+|---|---|
+| **Plan** | Assigns a capable reasoning model to inspect the repository and produce bounded steps |
+| **Implement** | Routes implementation work to a specialized coding agent |
+| **Review** | Employs an independent agent to catch errors the implementer missed |
+| **Fix** | Automatically triggers one focused repair cycle if critical issues are found |
+| **Verify** | Runs project-aware commands (`test`, `analyze`, `build`) before concluding |
+
+Routing dynamically evaluates:
+- User explicit overrides (`config.yaml`)
+- Configured delegate-skills fleet lanes
+- Built-in capability registry scores
+- Selected budget policy (`conservative`, `balanced`, `quality`)
+- Locally installed, authenticated agents
+
+---
+
+## What Makes It Different?
+
+Adaptive Orchestrator does not try to reinvent sub-agents, external CLI delegation, or the standard `Plan → Implement → Review` cycle. Those building blocks already exist.
+
+Its primary value is the **adaptive routing layer above them**:
+
+```text
+User Task
+   ↓
+Which agent?
+   ↓
+Which model?
+   ↓
+Which reasoning effort?
+   ↓
+Native sub-agent or external delegate?
+   ↓
+Execute with isolated handoff
+```
+
+By decoupling *who decides* from *who executes*, any supported agent can act as a coordinator without being forced to perform roles it is unsuited for.
 
 ---
 
 ## Quick Start
 
-### 1. Installation
+Adaptive Orchestrator is designed as an agent skill with zero external package dependencies.
 
-Clone or download the repository into your skills directory:
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/adaptive-orchestrator.git
-cd adaptive-orchestrator
+git clone https://github.com/tamourax/Adaptive-Orchestrator.git
+cd Adaptive-Orchestrator
 ```
 
-### 2. Environment Discovery & Setup
+### 2. Run environment setup
 
-Run setup to probe installed agent CLIs (`claude`, `codex`, `agy`, `cursor`, `opencode`, etc.) and detect any existing `delegate-skills` fleet:
+Inspects locally installed agent CLIs (`claude`, `codex`, `agy`, `cursor`, etc.) and detects delegate fleets:
 
 ```bash
 node scripts/setup.mjs
 ```
 
-Example output:
-```text
-  Adaptive Orchestrator — Setup
+### 3. Run self-test
 
-  Discovering environment...
-
-  Agents:
-    ✓ claude         2.1.220 (available)
-    ✓ codex          0.153.4 (available)
-    ✓ agy            1.1.27 (available)
-    ✗ gemini         not installed
-    ✗ opencode       not installed
-
-  ✓ delegate-skills fleet detected (3 lane(s))
-    feature -> codex / o4-mini
-    tests   -> aider
-    ui      -> cursor
-
-  Default policies:
-    Budget:    balanced
-    Delegate:  disabled (use --delegate at runtime)
-    Max:       disabled (use --allow-max at runtime)
-
-  Setup complete. Config: ~/.adaptive-orchestrator/config.yaml
-```
-
-### 3. Verify the Installation
-
-Execute the self-contained smoke test suite:
+Verify that all deterministic routing and state handlers are functioning:
 
 ```bash
 node scripts/smoke-test.mjs
 ```
 
----
+### 4. Use with your agent
 
-## CLI Scripts Reference
+Load `SKILL.md` into your preferred coding agent (e.g. Claude Code, Antigravity, OpenCode, Codex). In your agent prompt:
 
-### `route.mjs`
-
-Takes execution parameters via standard input or `--input` and emits a deterministic routing assignment:
-
-```bash
-node scripts/route.mjs --input '{
-  "taskSize": "medium",
-  "phase": "review",
-  "budget": "balanced",
-  "allowMax": false,
-  "delegateEnabled": false
-}'
+```text
+Use $adaptive-orchestrator to implement Stripe checkout in Flutter
 ```
 
-Output:
-```json
-{
-  "agent": "claude",
-  "model": "claude-sonnet-4-5",
-  "effort": "high",
-  "execution": "native"
-}
-```
+> **Note:** The scripts in `scripts/` are deterministic helpers invoked by the skill. Adaptive Orchestrator is a skill-first system, not a standalone CLI framework.
 
 ---
 
-### `run-state.mjs`
+## Example
 
-Controls run workspaces, prepares briefs, and manages machine contracts:
+*Example scenario — actual routing depends on your locally installed agents and configuration:*
 
-```bash
-# Initialize a new run
-node scripts/run-state.mjs init --task "Refactor billing module" --size large --budget balanced
+**Task:** `"Implement Stripe in Flutter"`
 
-# Generate a self-contained brief for the Implementer
-node scripts/run-state.mjs build-brief --run-id run-119894fa --phase implement
+```text
+Plan
+→ Claude / High Effort
 
-# Save phase output with structured findings
-node scripts/run-state.mjs write-phase \
-  --run-id run-119894fa \
-  --phase review \
-  --status completed \
-  --summary "Found 1 critical race condition in billing" \
-  --findings-json '[{"severity":"critical","title":"Race condition","file":"lib/billing.dart","description":"Concurrent payments conflict."}]'
+Implement
+→ Codex / Medium Effort
 
-# Inspect current run state
-node scripts/run-state.mjs read --run-id run-119894fa
+Review
+→ Claude / High Effort (Independent Reviewer)
+
+Verify
+→ Flutter analyze + test suite
+```
+
+### Review & Fix Flow
+
+```text
+[Review Phase]
+⚠ 1 CRITICAL issue detected: PaymentIntent confirmed twice on retry
+      ↓
+[Fix Phase]
+Implementer receives targeted fix brief containing only the critical issue
+      ↓
+[Re-Review Phase]
+Independent reviewer verifies the fix
+      ↓
+[Verification Phase]
+flutter test passes
+      ↓
+Status: Verified
 ```
 
 ---
 
-### `resume.mjs`
+## How Routing Works
 
-Locates stalled or interrupted operations to allow instant resumption:
+The execution sequence follows a strict, verifiable lifecycle:
 
-```bash
-# Query the most recent incomplete run
-node scripts/resume.mjs
-
-# List all local run workspaces
-node scripts/resume.mjs --list
+```mermaid
+flowchart TD
+    Task([User Task]) --> Route[Deterministic Route Selection]
+    Route --> Plan[1. Plan: Strong Reasoning]
+    Plan --> CheckScope{Scope Changed?}
+    CheckScope -- Yes --> Reclassify[Reclassify Task Size]
+    CheckScope -- No --> Impl[2. Implement: Coding Agent]
+    Reclassify --> Impl
+    Impl --> Review[3. Independent Review]
+    Review --> SeverityCheck{Critical Issues?}
+    SeverityCheck -- Yes --> Fix[4. Targeted Fix: Max 1 Cycle]
+    Fix --> ReReview[Re-Review]
+    ReReview --> FinalGate{Resolved?}
+    FinalGate -- No --> Blocked([Status: Blocked])
+    SeverityCheck -- No --> Verify[5. Project Verification]
+    FinalGate -- Yes --> Verify
+    Verify --> Verified([Status: Verified])
 ```
+
+### Decision Priority Chain
+
+When selecting the agent for each phase, `scripts/route.mjs` applies a 4-level decision rule:
+
+1. **User Override:** Hardcoded preference in `~/.adaptive-orchestrator/config.yaml`
+2. **Delegate Lane:** Matching lane in `fleet.yaml` (when `--delegate` is active)
+3. **Capability Registry:** Best available model meeting phase minimum score thresholds
+4. **Fallback:** Default host agent
 
 ---
 
-## Configuration & Overrides
+## Skill-First Architecture
 
-Persistent user settings reside in `~/.adaptive-orchestrator/config.yaml`. Any values defined here take top priority over built-in defaults:
+> *"Reasoning stays with agents. Deterministic operations stay in scripts."*
+
+Adaptive Orchestrator divides responsibilities cleanly:
+
+```mermaid
+graph LR
+    subgraph Brain["Intelligence"]
+        SKILL["SKILL.md<br/>Orchestration Brain"]
+    end
+
+    subgraph Deterministic["Deterministic Core"]
+        SCRIPTS["scripts/*.mjs<br/>• discover<br/>• route<br/>• run-state<br/>• resume"]
+        DATA["data/registry.json<br/>references/*.md"]
+    end
+
+    subgraph Execution["Execution Channels"]
+        NATIVE["Native Execution<br/>(Sub-agents where supported)"]
+        DELEGATE["Optional Delegate<br/>(delegate-skills relays)"]
+    end
+
+    SKILL --> SCRIPTS
+    SCRIPTS --> DATA
+    SKILL --> NATIVE
+    SKILL -.->|"--delegate"| DELEGATE
+```
+
+- **`SKILL.md`:** The brain. Instructs the orchestrating agent how to interpret task sizes, coordinate stages, and handle findings.
+- **`scripts/`:** Pure Node.js built-ins. Performs file I/O, routing rule evaluation, and state tracking without LLM calls.
+- **`data/registry.json`:** Baseline model capability scores and phase thresholds.
+- **`references/`:** Detailed schema, rule, and handoff documentation.
+- **Native Execution:** Default path. Uses native execution capabilities exposed by the host agent (sub-agents where supported).
+- **Delegate Execution:** Optional path. Connects to `delegate-skills` when external CLIs are requested.
+
+---
+
+## Core Principles
+
+| Principle | Rule |
+|---|---|
+| **Zero Runtime Dependencies** | Built using only Node.js standard libraries (`node:fs`, `node:child_process`, `node:path`). |
+| **Independent Review** | The implementer context never reviews its own work. |
+| **Severity-Based Gates** | Findings must be labeled `CRITICAL` (blocks completion), `WARNING` (reported), or `SUGGESTION` (advisory). |
+| **Loop Boundary** | Maximum 1 automated fix cycle. Prevents endless token-burning review loops. |
+| **Max Reasoning Opt-in** | `max` effort is disabled by default and requires explicit `--allow-max` authorization. |
+| **Context Isolation** | Phases pass structured briefs via disk rather than carrying bloated conversational context. |
+| **No Auto-Commits** | Code changes remain unstaged/uncommitted. The final commit belongs to the developer. |
+
+---
+
+## Handoff & Run Workspace
+
+To prevent context dilution across long tasks, every run maintains an isolated workspace on disk:
+
+```text
+.adaptive-orchestrator/runs/<run-id>/
+├── metadata.json          # Machine state, timestamps, and current phase
+├── task.md                # Original user task and boundary constraints
+├── plan.md / plan.json    # Architectural plan (human markdown + machine JSON)
+├── implementation.md/json # Changes made and touched files list
+├── review.md / review.json# Reviewer analysis and categorized findings
+└── final.md / final.json  # Automated test logs and final verdict
+```
+
+Each agent receives only the brief relevant to its phase. For example, the Reviewer receives `task.md`, `plan.md`, `implementation.md`, and the current Git diff—nothing more.
+
+---
+
+## `delegate-skills` Integration
+
+Adaptive Orchestrator supports [delegate-skills](https://github.com/amElnagdy/delegate-skills) as an optional execution channel:
+
+- **Default:** Native execution using host agent capabilities.
+- **Optional (`--delegate`):** Allows routing work to configured `delegate-skills` fleet lanes (e.g. sending coding tasks to Codex, UI tasks to Cursor).
+
+```text
+Adaptive Orchestrator (Top-Level Controller)
+         │
+         ├── Phase: Plan      → Native Agent
+         ├── Phase: Implement → delegate-skills (Codex)
+         ├── Phase: Review    → Native Agent (Independent)
+         └── Phase: Verify    → Native Agent
+```
+
+Adaptive Orchestrator always remains the top-level decision maker. External delegates act strictly as executors for designated phases.
+
+---
+
+## Configuration
+
+Settings are saved in `~/.adaptive-orchestrator/config.yaml`.
 
 ```yaml
-# ~/.adaptive-orchestrator/config.yaml
+# Default reasoning budget: conservative | balanced | quality
 defaultBudget: balanced
 
 # Force specific agents for specific phases:
@@ -426,31 +302,103 @@ agentOverrides.review: claude
 agentOverrides.verify: claude
 ```
 
----
+### Capability Registry (`data/registry.json`)
 
-## Integration with `delegate-skills`
+Models have default scores (1–5) across three axes:
 
-Adaptive Orchestrator seamlessly integrates with [amElnagdy/delegate-skills](https://github.com/amElnagdy/delegate-skills) when you pass `--delegate`.
-
-```mermaid
-graph LR
-    AO[Adaptive Orchestrator<br/>Top-Level Decision Maker]
-    DS[delegate-skills Fleet<br/>Execution Channel]
-    L1[Lane: feature -> Codex]
-    L2[Lane: ui -> Cursor]
-    L3[Lane: tests -> Aider]
-
-    AO -->|"--delegate"| DS
-    DS --> L1
-    DS --> L2
-    DS --> L3
+```json
+"claude-sonnet-4-5": { "planning": 4, "coding": 4, "review": 4 },
+"codex-default":     { "planning": 2, "coding": 5, "review": 2 },
+"unknown":           { "planning": 1, "coding": 1, "review": 1 }
 ```
 
-- **Adaptive Orchestrator:** Retains full command of the lifecycle, planning, review severity, and landing decision.
-- **delegate-skills:** Provides plug-and-play CLI relays for 18+ implementers without changing the orchestrator contract.
+> **Note:** Scores are practical routing heuristics and sensible defaults, not scientific benchmarks. Users can adjust scores in `config.yaml` to match their own preferences. Unknown models receive conservative fallback handling.
+
+---
+
+## Scripts Reference
+
+All helper scripts are located in `scripts/` and run on Node 18+:
+
+| Script | Purpose | Example Usage |
+|---|---|---|
+| **`setup.mjs`** | Probes environment and writes initial config | `node scripts/setup.mjs` |
+| **`discover.mjs`** | Outputs JSON of installed CLIs and fleet lanes | `node scripts/discover.mjs` |
+| **`route.mjs`** | Computes deterministic routing for a phase | `node scripts/route.mjs --input '{"phase":"plan","budget":"balanced"}'` |
+| **`run-state.mjs`** | Initializes workspaces and generates briefs | `node scripts/run-state.mjs build-brief --run-id <id> --phase plan` |
+| **`resume.mjs`** | Finds interrupted runs for graceful recovery | `node scripts/resume.mjs` |
+| **`smoke-test.mjs`**| Tests all scripts against standard cases | `node scripts/smoke-test.mjs` |
+
+---
+
+## Project Structure
+
+```text
+Adaptive-Orchestrator/
+├── SKILL.md                          # Main skill instructions for AI agents
+├── README.md                         # Documentation & architectural reference
+├── LICENSE                           # MIT License
+├── package.json                      # Script entry points (zero dependencies)
+├── .gitignore                        # Ignores runs and temporary artifacts
+│
+├── data/
+│   └── registry.json                 # Model capability scores and phase requirements
+│
+├── references/                       # Detailed specifications
+│   ├── capability-registry.md        # Scoring rubric and minimum phase floors
+│   ├── delegate-integration.md       # Delegate fleet protocol details
+│   ├── handoff-schema.md             # JSON and Markdown schemas for run workspaces
+│   └── routing-rules.md              # Task size classification and effort mapping
+│
+└── scripts/                          # Deterministic Node.js helpers (pure built-ins)
+    ├── discover.mjs
+    ├── resume.mjs
+    ├── route.mjs
+    ├── run-state.mjs
+    ├── setup.mjs
+    └── smoke-test.mjs
+```
+
+---
+
+## Current MVP Scope
+
+### Supported in MVP
+- Small, Medium, and Large task classification with heuristic baselines
+- Dynamic agent, model, and reasoning effort assignment per phase
+- Native execution preference with optional external delegate support
+- Strict independent code review
+- Categorized findings (`CRITICAL`, `WARNING`, `SUGGESTION`)
+- One-cycle automated critical fix loop
+- Isolated run workspaces with resume capabilities
+- Explicit budget modes (`conservative`, `balanced`, `quality`)
+- Guarded `max` reasoning effort (opt-in only)
+
+### Out of Scope for MVP
+- Self-learning neural routing
+- Automated live model benchmarking
+- Real-time provider API quota inspection
+- Multi-agent consensus voting
+- Cloud dashboards or centralized telemetry
+
+---
+
+## Roadmap
+
+Future iterations may explore:
+- **Specialized Reviewers:** Dedicated security, database, and accessibility review lanes.
+- **Benchmark-Informed Profiles:** Community-curated model capability presets.
+- **Comparative Multi-Run:** Parallel evaluation of competing implementation branches.
+- **Enhanced Run Metrics:** Granular latency and token tracking per phase.
+
+---
+
+## Contributing
+
+Contributions, feedback, and issue reports are welcome. Please ensure that all script modifications adhere to the zero-dependency standard and pass `node scripts/smoke-test.mjs` before submitting pull requests.
 
 ---
 
 ## License
 
-MIT © Google DeepMind Team & Contributors.
+Licensed under the MIT License. See [LICENSE](LICENSE).
