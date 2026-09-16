@@ -1,6 +1,6 @@
 {
   "name": "adaptive-director-skill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Adaptive Director Skill — Skill-first adaptive multi-agent orchestration for AI coding agents",
   "type": "module",
   "license": "MIT",

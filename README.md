@@ -1,5 +1,6 @@
 # Adaptive Director Skill
 
+[![npm version](https://img.shields.io/npm/v/adaptive-director-skill.svg)](https://www.npmjs.com/package/adaptive-director-skill)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#architecture)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -58,16 +59,22 @@ flowchart LR
 
 Adaptive Director runs with **zero external npm dependencies** (pure Node.js built-ins).
 
-### 1. Clone & Setup
+### 1. Install & Setup
 
+Via npm:
+```bash
+npm install adaptive-director-skill
+```
+
+Or clone directly:
 ```bash
 git clone https://github.com/tamourax/Adaptive-Orchestrator.git
 cd Adaptive-Orchestrator
+```
 
-# Probe local agents (Claude, Codex, Antigravity, Cursor, etc.)
+Initialize local configuration and run verification:
+```bash
 node scripts/setup.mjs
-
-# Verify installation with smoke test
 node scripts/smoke-test.mjs
 ```
 

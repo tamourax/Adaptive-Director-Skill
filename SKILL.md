@@ -4,7 +4,7 @@ description: >
   Adaptive multi-agent director for coding tasks.
   Routes every phase (plan, implement, review, fix, verify) to the right
   agent, model, and reasoning effort automatically.
-version: 0.1.0
+version: 0.1.1
 ---
 
 # Adaptive Director Skill
