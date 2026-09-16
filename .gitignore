@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .adaptive-orchestrator/
+.adaptive-director/
 package-lock.json
 *.log
 .DS_Store

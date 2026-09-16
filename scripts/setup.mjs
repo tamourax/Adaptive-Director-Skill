@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { createInterface } from 'node:readline'
 
-const CONFIG_DIR  = join(homedir(), '.adaptive-orchestrator')
+const CONFIG_DIR  = join(homedir(), '.adaptive-director')
 const CONFIG_PATH = join(CONFIG_DIR, 'config.yaml')
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ async function main() {
   const scriptDir = new URL('.', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')
   const discoverScript = join(scriptDir, 'discover.mjs')
 
-  console.log('\n  Adaptive Orchestrator — Setup\n')
+  console.log('\n  Adaptive Director — Setup\n')
   console.log('  Discovering environment...\n')
 
   // ── 1. Run discovery ──────────────────────────────────────────────────────

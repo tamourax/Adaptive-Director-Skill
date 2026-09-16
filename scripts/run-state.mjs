@@ -24,7 +24,9 @@ import { randomBytes } from 'node:crypto'
 
 // ─── Workspace root ───────────────────────────────────────────────────────────
 
-const RUNS_ROOT = join(process.cwd(), '.adaptive-orchestrator', 'runs')
+const RUNS_ROOT = existsSync(join(process.cwd(), '.adaptive-orchestrator', 'runs'))
+  ? join(process.cwd(), '.adaptive-orchestrator', 'runs')
+  : join(process.cwd(), '.adaptive-director', 'runs')
 
 function runDir(runId) { return join(RUNS_ROOT, runId) }
 function metaPath(runId) { return join(runDir(runId), 'metadata.json') }

@@ -15,7 +15,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-const RUNS_ROOT = join(process.cwd(), '.adaptive-orchestrator', 'runs')
+const RUNS_ROOT = existsSync(join(process.cwd(), '.adaptive-orchestrator', 'runs'))
+  ? join(process.cwd(), '.adaptive-orchestrator', 'runs')
+  : join(process.cwd(), '.adaptive-director', 'runs')
 const RESUMABLE = new Set(['interrupted', 'running', 'pending'])
 
 function metaPath(runId) {

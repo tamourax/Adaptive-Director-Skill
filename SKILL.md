@@ -1,13 +1,13 @@
 ---
-name: adaptive-orchestrator
+name: adaptive-director-skill
 description: >
-  Adaptive multi-agent orchestration for coding tasks.
+  Adaptive multi-agent director for coding tasks.
   Routes every phase (plan, implement, review, fix, verify) to the right
   agent, model, and reasoning effort automatically.
 version: 0.1.0
 ---
 
-# Adaptive Orchestrator
+# Adaptive Director Skill
 
 > **One task in. The right agents take it from there.**
 
@@ -392,4 +392,4 @@ The routing engine already handles this — it will NOT select a weak model for 
 
 ## One-Line Description
 
-> **Give Adaptive Orchestrator one coding task. It routes every phase to the right agent, model, and reasoning effort automatically.**
+> **Give Adaptive Director one coding task. It routes every phase to the right agent, model, and reasoning effort automatically.**

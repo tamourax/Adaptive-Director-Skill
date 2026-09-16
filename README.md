@@ -1,4 +1,4 @@
-# Adaptive Orchestrator
+# Adaptive Director Skill
 
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#architecture)
@@ -6,14 +6,14 @@
 
 > **One task in. The right agents take it from there.**
 
-**Adaptive Orchestrator** is a lightweight, skill-first orchestration layer for AI coding agents. Give it a single development task, and it dynamically assigns each phase—**Planning, Implementation, Review, Fixing, and Verification**—to the best available agent, model, and reasoning effort.
+**Adaptive Director Skill** is a lightweight, skill-first orchestration layer for AI coding agents. Give it a single development task, and it dynamically directs each phase—**Planning, Implementation, Review, Fixing, and Verification**—to the best available agent, model, and reasoning effort.
 
-Instead of burning expensive reasoning tokens on simple edits or trusting a weak model with complex architecture and reviews, it routes work intelligently based on capability and budget.
+Instead of burning expensive reasoning tokens on simple edits or trusting a weak model with complex architecture and reviews, it directs work intelligently based on capability and budget.
 
 ```text
                User Task
                    ↓
-         Adaptive Orchestrator
+         Adaptive Director
                    ↓
 Plan  →  Implement  →  Review  →  Verify
  ↓           ↓            ↓
@@ -46,7 +46,7 @@ flowchart LR
 
 | Phase | Adaptive Decision |
 |---|---|
-| **Plan** | Handled by a strong reasoning model |
+| **Plan** | Directed to a strong reasoning model |
 | **Implement** | Routed to an efficient coding specialist |
 | **Review** | Checked by an independent reviewer (never self-reviewed) |
 | **Fix** | Automated 1-cycle fix for critical findings |
@@ -56,7 +56,7 @@ flowchart LR
 
 ## Quick Start
 
-Adaptive Orchestrator runs with **zero external npm dependencies** (pure Node.js built-ins).
+Adaptive Director runs with **zero external npm dependencies** (pure Node.js built-ins).
 
 ### 1. Clone & Setup
 
@@ -76,7 +76,7 @@ node scripts/smoke-test.mjs
 Load `SKILL.md` into your coding agent (Claude Code, Antigravity, Codex, etc.) and prompt:
 
 ```text
-Use $adaptive-orchestrator to implement Stripe checkout in Flutter
+Use $adaptive-director-skill to implement Stripe checkout in Flutter
 ```
 
 ---
@@ -101,7 +101,7 @@ Use $adaptive-orchestrator to implement Stripe checkout in Flutter
 > *"Reasoning stays with agents. Deterministic operations stay in scripts."*
 
 ```text
-adaptive-orchestrator/
+adaptive-director/
 ├── SKILL.md                 # The brain: instructions read by your AI agent
 ├── data/registry.json       # Baseline model capability scores (1–5)
 ├── references/              # Handoff schemas, rules, and delegate docs
@@ -114,7 +114,7 @@ adaptive-orchestrator/
 
 ### Routing Priority Order
 
-1. **User Overrides:** Explicit settings in `~/.adaptive-orchestrator/config.yaml`
+1. **User Overrides:** Explicit settings in `~/.adaptive-director/config.yaml`
 2. **Delegate Lanes:** Optional `delegate-skills` fleet lanes (when `--delegate` is active)
 3. **Capability Registry:** Best available local model meeting phase requirements
 4. **Fallback:** Default host agent
@@ -126,12 +126,12 @@ adaptive-orchestrator/
 - **Independent Review:** The coder never reviews its own work.
 - **Max Reasoning Opt-in:** `max` effort is locked by default; requires `--allow-max`.
 - **Runaway Loop Protection:** Maximum 1 automated fix cycle before alerting the user.
-- **Context Isolation:** Each agent receives only a self-contained brief on disk (`.adaptive-orchestrator/runs/`), preventing context window bloat.
+- **Context Isolation:** Each agent receives only a self-contained brief on disk (`.adaptive-director/runs/`), preventing context window bloat.
 - **Zero Dependencies:** Runs on vanilla Node.js 18+.
 
 ---
 
-## Configuration (`~/.adaptive-orchestrator/config.yaml`)
+## Configuration (`~/.adaptive-director/config.yaml`)
 
 ```yaml
 defaultBudget: balanced # conservative | balanced | quality

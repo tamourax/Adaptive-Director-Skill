@@ -45,7 +45,9 @@ function loadRegistry() {
 
 // ─── User config ──────────────────────────────────────────────────────────────
 
-const USER_CONFIG_PATH = join(homedir(), '.adaptive-orchestrator', 'config.yaml')
+const USER_CONFIG_PATH = existsSync(join(homedir(), '.adaptive-director', 'config.yaml'))
+  ? join(homedir(), '.adaptive-director', 'config.yaml')
+  : join(homedir(), '.adaptive-orchestrator', 'config.yaml')
 
 function loadUserConfig() {
   if (!existsSync(USER_CONFIG_PATH)) return {}

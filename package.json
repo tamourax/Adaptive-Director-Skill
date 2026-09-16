@@ -1,15 +1,40 @@
 {
-  "name": "adaptive-orchestrator",
+  "name": "adaptive-director-skill",
   "version": "0.1.0",
-  "description": "Adaptive multi-agent orchestration for coding tasks",
+  "description": "Adaptive Director Skill — Skill-first adaptive multi-agent orchestration for AI coding agents",
   "type": "module",
-  "scripts": {
-    "setup":   "node scripts/setup.mjs",
-    "discover": "node scripts/discover.mjs",
-    "test":    "node scripts/smoke-test.mjs"
+  "license": "MIT",
+  "author": "Ahmed Tamer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamourax/Adaptive-Orchestrator.git"
   },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "scripts/",
+    "references/",
+    "data/"
+  ],
+  "scripts": {
+    "test": "node scripts/smoke-test.mjs",
+    "setup": "node scripts/setup.mjs",
+    "discover": "node scripts/discover.mjs"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "coding-agents",
+    "multi-agent",
+    "orchestration",
+    "director",
+    "codex",
+    "claude",
+    "agentic-coding",
+    "skill"
+  ],
   "engines": {
     "node": ">=18.0.0"
-  },
-  "license": "MIT"
+  }
 }
