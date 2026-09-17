@@ -183,7 +183,19 @@ function executeNativePhase({ phase, brief, decision, opts, runId, reviewAttempt
     }
   }
 
-  const payload = JSON.stringify({ phase, runId, route: decision, brief })
+  const payload = JSON.stringify({
+    phase,
+    runId,
+    task: opts.task,
+    brief,
+    briefPath: join(projectRoot, '.adaptive-director', 'runs', runId, `brief-${phase}.md`),
+    cwd: opts.cwd,
+    agent: decision.agent,
+    model: decision.model ?? null,
+    effort: decision.effort,
+    execution: decision.execution,
+    route: decision,
+  })
   try {
     const out = execFileSync(executor, [], {
       cwd: opts.cwd,
