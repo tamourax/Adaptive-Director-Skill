@@ -93,9 +93,15 @@ function loadDelegateLanes() {
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 function modelScore(registry, modelId) {
+  if (!modelId) return registry.models['unknown'] ?? { planning: 1, coding: 1, review: 1 }
+  const lower = modelId.toLowerCase()
+  const withHyphen = lower.replace(/\./g, '-')
+  const withDot = lower.replace(/-/g, '.')
   return (
     registry.models[modelId] ??
-    registry.models[modelId?.toLowerCase()] ??
+    registry.models[lower] ??
+    registry.models[withHyphen] ??
+    registry.models[withDot] ??
     registry.models['unknown'] ??
     { planning: 1, coding: 1, review: 1 }
   )
@@ -120,14 +126,14 @@ function phaseScore(registry, modelId, phase) {
 // ─── Agent → representative model mapping ─────────────────────────────────────
 
 const AGENT_MODEL_MAP = {
-  claude:   'claude-sonnet-4-5',
-  agy:      'claude-sonnet-4-5',
-  codex:    'codex-default',
+  claude:   'claude-3-7-sonnet',
+  agy:      'claude-3-7-sonnet',
+  codex:    'gpt-5.6-sol',
   gemini:   'gemini-2-5-pro',
-  opencode: 'gpt-4o',
-  aider:    'gpt-4o',
-  cursor:   'claude-sonnet-4-5',
-  cline:    'claude-sonnet-4-5',
+  opencode: 'o3-mini',
+  aider:    'deepseek-r1',
+  cursor:   'claude-3-7-sonnet',
+  cline:    'claude-3-7-sonnet',
   copilot:  'gpt-4o',
 }
 

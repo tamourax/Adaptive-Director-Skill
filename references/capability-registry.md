@@ -23,8 +23,11 @@ Location: `data/registry.json`
 ```json
 {
   "models": {
-    "claude-sonnet-4-5": { "planning": 4, "coding": 4, "review": 4 },
-    "codex-default":     { "planning": 2, "coding": 5, "review": 2 },
+    "gpt-6-astra":       { "planning": 5, "coding": 5, "review": 5 },
+    "gpt-5.6-sol":       { "planning": 5, "coding": 5, "review": 5 },
+    "gpt-5.5":           { "planning": 5, "coding": 5, "review": 4 },
+    "claude-3-7-sonnet": { "planning": 5, "coding": 5, "review": 5 },
+    "o3-mini":           { "planning": 5, "coding": 5, "review": 4 },
     "unknown":           { "planning": 1, "coding": 1, "review": 1 }
   },
   "phase_requirements": {
