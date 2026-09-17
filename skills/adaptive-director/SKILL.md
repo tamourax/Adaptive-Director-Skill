@@ -72,11 +72,30 @@ adaptive-director run "Implement Stripe in Flutter"
 
 The run command creates the run workspace, persists routing decisions, dispatches phases, records verification evidence, handles the one-cycle critical fix loop, and writes a terminal status.
 
+Supported run flags:
+
+| Flag | Values | Default | Meaning |
+|------|--------|---------|---------|
+| `--budget <mode>` | `conservative`, `balanced`, `quality` | `balanced` | Selects phase effort levels. |
+| `--delegate` | boolean | off | Allows delegate fleet lanes when available. |
+| `--allow-max` | boolean | off | Allows max reasoning if routing selects it. |
+| `--dry-run` | boolean | off | Prints routing decisions and exits without execution. |
+| `--cwd <path>` | path | current directory | Runs against a specific project directory. |
+
+Examples:
+
+```bash
+adaptive-director run "Fix billing retry tests" --delegate
+adaptive-director run "Refactor auth architecture" --budget quality --allow-max
+adaptive-director run "Show routing for this migration" --dry-run
+adaptive-director run "Fix pagination" --cwd ../api
+```
+
 ### Step 1: Read user input
 
 Extract:
 - Task description
-- Flags: `--budget`, `--delegate`, `--allow-max`, `--dry-run`
+- Flags: `--budget`, `--delegate`, `--allow-max`, `--dry-run`, `--cwd`
 - Default budget: `balanced`
 
 ### Step 2: Classify the task
@@ -396,6 +415,17 @@ The routing engine already handles this — it will NOT select a weak model for 
 ✗ Automatic rollback
 ✗ Cloud features
 ```
+
+---
+
+## Setup Command Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--with-delegate` | Install optional delegate-skills integration through the official installer. |
+| `--no-delegate` | Skip delegate installation and keep native execution active. |
+| `--yes`, `-y` | Non-interactive setup. |
+| `--delegate-only` | Internal helper used by `adaptive-director delegate install`. |
 
 ---
 
