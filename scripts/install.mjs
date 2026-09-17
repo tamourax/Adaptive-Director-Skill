@@ -10,33 +10,28 @@ const projectRoot = join(__dirname, '..');
 const args = process.argv.slice(2);
 const targets = args.filter(a => !a.startsWith('-'));
 
+const canonicalSkillSource = join(projectRoot, 'skills', 'adaptive-director');
+
 /**
  * Copy Adaptive Director Skill files into a host skill directory.
- * Idempotent: removes old copy first, then copies fresh.
+ * Idempotent: removes old copy first, then copies fresh from skills/adaptive-director.
  */
 function installInto(hostSkillDir) {
-  const dest = join(hostSkillDir, 'Adaptive-Director');
+  const dest = join(hostSkillDir, 'adaptive-director');
   console.log(`  Installing into ${dest}...`);
-  if (existsSync(dest)) {
+  if (!existsSync(canonicalSkillSource)) {
+    console.error(`  Error: Canonical skill source not found at ${canonicalSkillSource}`);
+    process.exit(1);
+  }
+  // Remove legacy title-case folder if different and present
+  const legacyDest = join(hostSkillDir, 'Adaptive-Director');
+  if (legacyDest.toLowerCase() === dest.toLowerCase() && existsSync(legacyDest)) {
+    rmSync(legacyDest, { recursive: true, force: true });
+  } else if (existsSync(dest)) {
     rmSync(dest, { recursive: true, force: true });
   }
   mkdirSync(dest, { recursive: true });
-  cpSync(join(projectRoot, 'SKILL.md'), join(dest, 'SKILL.md'));
-  if (existsSync(join(projectRoot, 'references'))) {
-    cpSync(join(projectRoot, 'references'), join(dest, 'references'), { recursive: true });
-  }
-  if (existsSync(join(projectRoot, 'templates'))) {
-    cpSync(join(projectRoot, 'templates'), join(dest, 'templates'), { recursive: true });
-  }
-  if (existsSync(join(projectRoot, 'examples'))) {
-    cpSync(join(projectRoot, 'examples'), join(dest, 'examples'), { recursive: true });
-  }
-  if (existsSync(join(projectRoot, 'data'))) {
-    cpSync(join(projectRoot, 'data'), join(dest, 'data'), { recursive: true });
-  }
-  if (existsSync(join(projectRoot, 'scripts'))) {
-    cpSync(join(projectRoot, 'scripts'), join(dest, 'scripts'), { recursive: true });
-  }
+  cpSync(canonicalSkillSource, dest, { recursive: true });
   console.log(`  ✓ Installed successfully at ${dest}`);
 }
 

@@ -13,14 +13,10 @@
     "url": "git+https://github.com/tamourax/Adaptive-Director-Skill.git"
   },
   "files": [
-    "SKILL.md",
     "README.md",
     "LICENSE",
     "scripts/",
-    "references/",
-    "templates/",
-    "examples/",
-    "data/"
+    "skills/"
   ],
   "scripts": {
     "test": "node scripts/smoke-test.mjs",

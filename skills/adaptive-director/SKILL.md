@@ -1,5 +1,5 @@
 ---
-name: adaptive-director-skill
+name: adaptive-director
 description: >-
   Adaptive multi-agent director for coding tasks. Use this skill whenever the user
   asks to implement features, fix complex bugs, refactor architecture, or coordinate

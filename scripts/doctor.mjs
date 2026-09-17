@@ -37,20 +37,22 @@ function warn(label) {
 const configDir = join(homedir(), '.adaptive-director');
 const configPath = join(configDir, 'config.json');
 const pkgRoot = join(__dirname, '..');
+const skillRoot = join(pkgRoot, 'skills', 'adaptive-director');
 
 console.log('Adaptive Director Doctor\n');
 
 let allGood = true;
 
-// ── Package files ──────────────────────────────────────────────────────────
+// ── Package & Skill files ──────────────────────────────────────────────────
 allGood &= check('Package installed',     existsSync(join(pkgRoot, 'package.json')));
-allGood &= check('SKILL.md exists',       existsSync(join(pkgRoot, 'SKILL.md')));
-allGood &= check('references/ exists',    existsSync(join(pkgRoot, 'references')));
-allGood &= check('templates/ exists',     existsSync(join(pkgRoot, 'templates')));
-allGood &= check('examples/ exists',       existsSync(join(pkgRoot, 'examples')));
+allGood &= check('Skill source exists',   existsSync(skillRoot));
+allGood &= check('SKILL.md exists',       existsSync(join(skillRoot, 'SKILL.md')));
+allGood &= check('references/ exists',    existsSync(join(skillRoot, 'references')));
+allGood &= check('templates/ exists',     existsSync(join(skillRoot, 'templates')));
+allGood &= check('examples/ exists',      existsSync(join(skillRoot, 'examples')));
 
 // ── Registry ──────────────────────────────────────────────────────────────
-const registryPath = join(pkgRoot, 'data', 'registry.json');
+const registryPath = join(skillRoot, 'data', 'registry.json');
 if (check('Registry exists', existsSync(registryPath))) {
   try {
     JSON.parse(readFileSync(registryPath, 'utf8'));
@@ -74,8 +76,8 @@ if (check('Config exists', existsSync(configPath), 'adaptive-director setup')) {
   allGood = false;
 }
 
-// ── Routing script ────────────────────────────────────────────────────────
-const routePath = join(__dirname, 'route.mjs');
+// ── Runtime Skill Scripts ─────────────────────────────────────────────────
+const routePath = join(skillRoot, 'scripts', 'route.mjs');
 if (existsSync(routePath)) {
   try {
     const testPayload = JSON.stringify({ taskSize: 'small', phase: 'implement', budget: 'balanced', allowMax: false, delegateEnabled: false });
@@ -89,11 +91,11 @@ if (existsSync(routePath)) {
     allGood &= check('Routing script works', false, `Error: ${e.message}`);
   }
 } else {
-  allGood &= check('Routing script works', false, 'Script missing — reinstall package');
+  allGood &= check('Routing script works', false, 'Script missing in skills/adaptive-director/scripts — reinstall package');
 }
 
-// ── Run-state script ──────────────────────────────────────────────────────
-allGood &= check('Run state script exists', existsSync(join(__dirname, 'run-state.mjs')));
+allGood &= check('Run state script exists', existsSync(join(skillRoot, 'scripts', 'run-state.mjs')));
+allGood &= check('Resume script exists',    existsSync(join(skillRoot, 'scripts', 'resume.mjs')));
 
 // ── Host discovery ────────────────────────────────────────────────────────
 console.log('');
@@ -104,7 +106,11 @@ if (discovery) {
     if (!info.installed) continue;
     anyHost = true;
     check(`${id} detected`, true);
-    if (info.hasSkill) {
+    const hostHasSkill = info.skillPath && (
+      existsSync(join(info.skillPath, 'adaptive-director', 'SKILL.md')) ||
+      existsSync(join(info.skillPath, 'Adaptive-Director', 'SKILL.md'))
+    );
+    if (hostHasSkill) {
       check(`Skill installed for ${id}`, true);
     } else if (info.skillPath) {
       allGood &= check(`Skill installed for ${id}`, false,

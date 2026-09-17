@@ -88,14 +88,18 @@ adaptive-director doctor
 Expected output:
 ```
 ✓ Package installed
+✓ Skill source exists
 ✓ SKILL.md exists
 ✓ references/ exists
+✓ templates/ exists
+✓ examples/ exists
 ✓ Registry exists
 ✓ Registry valid
 ✓ Config exists
 ✓ Config valid
 ✓ Routing script works
 ✓ Run state script exists
+✓ Resume script exists
 ✓ codex detected
 ✓ Skill installed for codex
 
@@ -104,10 +108,10 @@ Ready.
 
 ### 4. Run with Your AI Agent
 
-Load `SKILL.md` into your coding agent (Claude Code, Antigravity, Codex, etc.) and prompt:
+The Skill is now installed in your agent's skills directory. Prompt your agent:
 
 ```text
-Use $adaptive-director-skill to implement Stripe checkout in Flutter
+Use $adaptive-director to implement Stripe checkout in Flutter
 ```
 
 ---
@@ -124,6 +128,35 @@ Use $adaptive-director-skill to implement Stripe checkout in Flutter
 5. **Re-Review:** Reviewer confirms the fix.
 6. **Verify:** Runs `flutter analyze && flutter test`.
 7. **Done:** Changes left uncommitted for final developer review.
+
+---
+
+## Repository Architecture
+
+The repository separates the **npm management/installer layer** from the **self-contained Agent Skill**:
+
+- **Repository Root:** npm distribution, CLI tools, setup, host discovery, and health diagnostics (`scripts/`).
+- **`skills/adaptive-director/`:** The canonical, portable Agent Skill (procedural brain, runtime scripts, templates, references, and registry data).
+
+```text
+Adaptive-Director-Skill/
+├── scripts/                      # Management & CLI layer
+│   ├── cli.mjs                   # Main CLI router
+│   ├── setup.mjs                 # Interactive host setup
+│   ├── install.mjs               # Idempotent skill copier
+│   ├── refresh.mjs               # Safe config refresher
+│   ├── discover.mjs              # Local agent discovery
+│   ├── doctor.mjs                # Installation diagnostics
+│   └── smoke-test.mjs            # Automated test suite
+│
+└── skills/adaptive-director/     # Portable Agent Skill (the brain)
+    ├── SKILL.md                  # Procedural runbook
+    ├── scripts/                  # Runtime scripts (route, run-state, resume)
+    ├── references/               # Deep documentation & schemas
+    ├── templates/                # Standardized phase brief templates
+    ├── examples/                 # Realistic execution walkthroughs
+    └── data/                     # Capability registry
+```
 
 ---
 

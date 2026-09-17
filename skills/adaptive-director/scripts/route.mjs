@@ -29,12 +29,16 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
-const REGISTRY_PATH = join(import.meta.dirname ?? '.', '../data/registry.json')
+const REGISTRY_PATH = resolve(__dirname, '../data/registry.json')
 
 function loadRegistry() {
   if (!existsSync(REGISTRY_PATH)) {

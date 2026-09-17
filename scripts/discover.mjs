@@ -132,7 +132,7 @@ function discover() {
       available:  version !== null,
       version:    version ?? 'unknown',
       skillPath:  detectedSkillPath,
-      hasSkill:   detectedSkillPath ? existsSync(join(detectedSkillPath, 'adaptive-director-skill')) || existsSync(join(detectedSkillPath, 'Adaptive-Director')) : false
+      hasSkill:   detectedSkillPath ? existsSync(join(detectedSkillPath, 'adaptive-director')) || existsSync(join(detectedSkillPath, 'Adaptive-Director')) || existsSync(join(detectedSkillPath, 'adaptive-director-skill')) : false
     }
   }
 
