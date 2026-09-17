@@ -4,7 +4,7 @@ description: >-
   Adaptive multi-agent director for coding tasks. Use this skill whenever the user
   asks to implement features, fix complex bugs, refactor architecture, or coordinate
   multiple coding agents across planning, implementation, independent review, and verification phases.
-version: 1.1.1
+version: 1.1.2
 ---
 
 # Adaptive Director Skill
@@ -62,11 +62,40 @@ You do NOT implement, review, or verify yourself unless you are the best availab
 
 ## How to Start a Run
 
+### Fast path
+
+For normal user-facing orchestration, prefer the CLI entry point:
+
+```bash
+adaptive-director run "Implement Stripe in Flutter"
+```
+
+The run command creates the run workspace, persists routing decisions, dispatches phases, records verification evidence, handles the one-cycle critical fix loop, and writes a terminal status.
+
+Supported run flags:
+
+| Flag | Values | Default | Meaning |
+|------|--------|---------|---------|
+| `--budget <mode>` | `conservative`, `balanced`, `quality` | `balanced` | Selects phase effort levels. |
+| `--delegate` | boolean | off | Allows delegate fleet lanes when available. |
+| `--allow-max` | boolean | off | Allows max reasoning if routing selects it. |
+| `--dry-run` | boolean | off | Prints routing decisions and exits without execution. |
+| `--cwd <path>` | path | current directory | Runs against a specific project directory. |
+
+Examples:
+
+```bash
+adaptive-director run "Fix billing retry tests" --delegate
+adaptive-director run "Refactor auth architecture" --budget quality --allow-max
+adaptive-director run "Show routing for this migration" --dry-run
+adaptive-director run "Fix pagination" --cwd ../api
+```
+
 ### Step 1: Read user input
 
 Extract:
 - Task description
-- Flags: `--budget`, `--delegate`, `--allow-max`, `--dry-run`
+- Flags: `--budget`, `--delegate`, `--allow-max`, `--dry-run`, `--cwd`
 - Default budget: `balanced`
 
 ### Step 2: Classify the task
@@ -186,6 +215,8 @@ node scripts/run-state.mjs write-phase \
   --status completed \
   --summary "<agent output>"
 ```
+
+The canonical implementation report filename is `implement.md`. Older runs that contain `implementation.md` may be read as a compatibility fallback, but new runs write `implement.md`.
 
 If the phase is `review` or `fix`, also parse findings and include:
 ```bash
@@ -387,14 +418,27 @@ The routing engine already handles this — it will NOT select a weak model for 
 
 ---
 
+## Setup Command Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--with-delegate` | Install optional delegate-skills integration through the official installer. |
+| `--no-delegate` | Skip delegate installation and keep native execution active. |
+| `--yes`, `-y` | Non-interactive setup. |
+| `--delegate-only` | Internal helper used by `adaptive-director delegate install`. |
+
+---
+
 ## Quick Reference
 
 | Script | Purpose |
 |--------|---------|
 | `scripts/discover.mjs` | Detect installed agents and delegate fleet |
 | `scripts/setup.mjs` | Interactive setup + config write |
+| `scripts/run.mjs` | User-facing end-to-end workflow runner |
+| `scripts/verify-evidence.mjs` | Deterministic verification evidence runner |
 | `scripts/route.mjs` | Deterministic routing (stdin JSON → stdout JSON) |
-| `scripts/run-state.mjs` | Run workspace: init, update, read, write, brief |
+| `scripts/run-state.mjs` | Run workspace: init, update, routing, evidence, read, write, brief |
 | `scripts/resume.mjs` | Find and return interrupted run |
 
 | Reference | Content |

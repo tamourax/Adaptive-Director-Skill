@@ -11,6 +11,7 @@ const args = process.argv.slice(2);
 const command = args[0] || 'help';
 
 const commands = {
+  run: 'run.mjs',
   setup: 'setup.mjs',
   install: 'install.mjs',
   refresh: 'refresh.mjs',
@@ -19,12 +20,13 @@ const commands = {
 };
 
 if (command === 'help' || command === '--help' || command === '-h') {
-  console.log(`Adaptive Director Skill CLI v1.1.1
+  console.log(`Adaptive Director Skill CLI v1.1.2
 
 Usage:
   adaptive-director <command> [options]
 
 Commands:
+  run       - Run a complete Adaptive Director workflow for one coding task
   setup     - Initial interactive setup and host/delegate configuration
               Flags: --with-delegate, --no-delegate, --yes
   install   - Install/copy the Skill into supported host skill directories

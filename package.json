@@ -1,6 +1,6 @@
 {
   "name": "adaptive-director-skill",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Adaptive Director Skill — Skill-first adaptive multi-agent orchestration for AI coding agents",
   "type": "module",
   "bin": {
@@ -19,7 +19,7 @@
     "skills/"
   ],
   "scripts": {
-    "test": "node scripts/smoke-test.mjs && node scripts/test-setup-delegate.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/test-setup-delegate.mjs && node scripts/test-run-flow.mjs",
     "setup": "node scripts/setup.mjs",
     "discover": "node scripts/discover.mjs",
     "doctor": "node scripts/doctor.mjs"
