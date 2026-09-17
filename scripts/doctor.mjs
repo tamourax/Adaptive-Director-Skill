@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function run(script, args = []) {
+function run(script, args = [], env = process.env) {
   try {
     const out = execFileSync(process.execPath, [script, ...args], {
       encoding: 'utf8', timeout: 15000,
       cwd: process.cwd(),
+      env,
     });
     return JSON.parse(out.trim());
   } catch {
@@ -65,9 +66,10 @@ if (check('Registry exists', existsSync(registryPath))) {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────
+let configObj = null;
 if (check('Config exists', existsSync(configPath), 'adaptive-director setup')) {
   try {
-    JSON.parse(readFileSync(configPath, 'utf8'));
+    configObj = JSON.parse(readFileSync(configPath, 'utf8'));
     check('Config valid', true);
   } catch {
     allGood &= check('Config valid', false, 'rm ~/.adaptive-director/config.json && adaptive-director setup');
@@ -99,7 +101,7 @@ allGood &= check('Resume script exists',    existsSync(join(skillRoot, 'scripts'
 
 // ── Host discovery ────────────────────────────────────────────────────────
 console.log('');
-const discovery = run(join(__dirname, 'discover.mjs'));
+const discovery = run(join(__dirname, 'discover.mjs'), [], process.env);
 if (discovery) {
   let anyHost = false;
   for (const [id, info] of Object.entries(discovery.agents ?? {})) {
@@ -122,11 +124,18 @@ if (discovery) {
   if (!anyHost) warn('No supported hosts detected');
 
   console.log('');
-  const ds = discovery.delegateSkills ?? { installed: false };
+  const ds = discovery.delegateSkills ?? { installed: false, skills: [], relays: [], lanes: {} };
   if (ds.installed) {
-    check(`delegate-skills detected (${Object.keys(ds.lanes ?? {}).length} lane(s))`, true);
+    const skillCount = (ds.skills ?? ds.relays ?? []).length;
+    const laneCount = Object.keys(ds.lanes ?? {}).length;
+    check(`delegate-skills detected (${skillCount} delegate skill(s), ${laneCount} lane(s))`, true);
   } else {
-    warn('delegate-skills not detected (optional)');
+    warn('delegate-skills not detected (optional — native execution active)');
+    if (configObj?.delegate?.lastInstallAttempt === 'failed') {
+      warn('Last delegate-skills install attempt failed (run "adaptive-director delegate install" to retry)');
+    } else if (configObj?.delegate?.lastInstallAttempt === 'unverified') {
+      warn('delegate-skills installation unverified: no relays detected');
+    }
   }
 } else {
   allGood &= check('Discovery script works', false, 'Check Node version or reinstall');

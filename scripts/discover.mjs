@@ -13,7 +13,7 @@
  */
 
 import { execFileSync, execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { discoverHostModels } from '../skills/adaptive-director/scripts/discover-models.mjs'
@@ -145,16 +145,44 @@ function discoverDelegate() {
     } catch {}
   }
 
-  const installed = Object.keys(lanes).length > 0 || hasAgentsSkills || hasSkillLock
+  // Detect installed delegate relays across candidate directories
+  const relayDirs = [
+    agentsSkillsDir,
+    codexSkillsDir,
+    join(process.cwd(), '.agents', 'skills'),
+    join(process.cwd(), 'delegate-skills', 'skills'),
+    join(homedir(), '.skills', 'amElnagdy', 'delegate-skills', 'skills'),
+  ]
+  const skillsSet = new Set()
+  const relaysSet = new Set()
+  for (const dir of relayDirs) {
+    if (!existsSync(dir)) continue
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue
+        if (entry.name.endsWith('-delegate') || entry.name === 'delegate-setup' || entry.name.startsWith('delegate-')) {
+          skillsSet.add(entry.name)
+          if (entry.name.endsWith('-delegate')) {
+            relaysSet.add(entry.name)
+          }
+        }
+      }
+    } catch {}
+  }
+  const skills = Array.from(skillsSet).sort()
+  const relays = Array.from(relaysSet).sort()
+
+  const installed = Object.keys(lanes).length > 0 || hasAgentsSkills || hasSkillLock || skills.length > 0
 
   // If installed but no explicit fleet lanes file configured, synthesize lanes from installed delegate skills
-  if (installed && Object.keys(lanes).length === 0 && hasAgentsSkills) {
-    if (existsSync(join(agentsSkillsDir, 'codex-delegate'))) {
+  if (installed && Object.keys(lanes).length === 0 && (hasAgentsSkills || relays.length > 0)) {
+    if (relays.includes('codex-delegate') || existsSync(join(agentsSkillsDir, 'codex-delegate'))) {
       lanes.feature = { agent: 'codex', implementer: 'codex' }
       lanes.implement = { agent: 'codex', implementer: 'codex' }
       lanes.fix = { agent: 'codex', implementer: 'codex' }
     }
-    if (existsSync(join(agentsSkillsDir, 'agy-delegate'))) {
+    if (relays.includes('agy-delegate') || existsSync(join(agentsSkillsDir, 'agy-delegate'))) {
       lanes.plan = { agent: 'agy', implementer: 'agy' }
       lanes.review = { agent: 'agy', implementer: 'agy' }
       lanes.verify = { agent: 'agy', implementer: 'agy' }
@@ -164,7 +192,9 @@ function discoverDelegate() {
   return {
     installed,
     lanes,
-    source: hasSkillLock ? 'amElnagdy/delegate-skills' : (hasAgentsSkills ? 'local-skills' : (Object.keys(lanes).length > 0 ? 'fleet-config' : null))
+    skills,
+    relays,
+    source: hasSkillLock ? 'amElnagdy/delegate-skills' : (hasAgentsSkills ? 'local-skills' : (Object.keys(lanes).length > 0 ? 'fleet-config' : (skills.length > 0 ? 'detected-skills' : null)))
   }
 }
 

@@ -75,15 +75,51 @@ Adaptive Director reads these lanes during routing and maps them to phases by ke
 
 ## Installing delegate-skills
 
+Adaptive Director integrates seamlessly with the official delegate-skills package:
+
+- **Repository:** `https://github.com/amElnagdy/delegate-skills`
+- **Official command:** `npx skills add amElnagdy/delegate-skills`
+
+### Setup UX & Guided Flow
+
+During `adaptive-director setup`, the setup engine detects whether `delegate-skills` is present:
+
+1. **If already installed:**
+   - Detects and lists all available relays (e.g. `codex-delegate`, `agy-delegate`).
+   - Reuses existing installation without prompting or reinstalling.
+2. **If missing:**
+   - Prompts the user:
+     ```text
+     Install delegate-skills now?
+     [Y] Install
+     [N] Continue with native execution
+     ```
+   - If user confirms `Y`: calls the official installer `npx skills add amElnagdy/delegate-skills`.
+   - If user rejects `N`: continues with native execution.
+3. **CI / Non-interactive environments:**
+   - Automatically skips optional installation and defaults to native execution, unless `--with-delegate` is explicitly provided.
+
+### CLI Flags & Commands
+
 ```bash
-npx skills add amElnagdy/delegate-skills
+# Setup with explicit delegate installation
+adaptive-director setup --with-delegate
+
+# Setup bypassing delegate installation
+adaptive-director setup --no-delegate
+
+# Install delegate skills directly
+adaptive-director delegate install
+
+# Inspect delegate integration status and discovered relays
+adaptive-director delegate status
 ```
 
-Or specific skills:
-```bash
-npx skills add amElnagdy/delegate-skills --skill codex-delegate
-npx skills add amElnagdy/delegate-skills --skill agy-delegate
-```
+### Failure Resilience
+
+- **Non-blocking installer errors:** If `npx skills add` exits non-zero, Adaptive Director logs a clear failure message and continues setup with native execution active.
+- **Verification check:** If the installer exits 0 but no delegate relays are discovered, Adaptive Director marks the attempt as `unverified` and maintains native execution.
+- **Config persistence:** Config stores `delegate: { installed, enabled: false, lastInstallAttempt }` and preserves all user overrides. Native execution remains default.
 
 ---
 
