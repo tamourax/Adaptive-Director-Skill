@@ -135,4 +135,39 @@ try {
   rmSync(tempHostDir, { recursive: true, force: true })
 }
 
+// Test 11: Fix trigger strictly on critical > 0
+const nonCriticalFindings = JSON.stringify([
+  { severity: 'warning', title: 'Advisory style issue' },
+  { severity: 'suggestion', title: 'Optional optimization' }
+])
+runStateCmd('write-phase', [
+  '--run-id', runId, '--phase', 'review',
+  '--status', 'completed', '--summary', 'Only warnings and suggestions',
+  '--findings-json', nonCriticalFindings
+])
+const evalReview = runStateCmd('eval-review', ['--run-id', runId])
+console.assert(evalReview.criticalCount === 0, 'critical count should be 0')
+console.assert(evalReview.needsFix === false, 'needsFix must be false when criticalCount == 0')
+console.assert(evalReview.nextPhase === 'verify', 'nextPhase must be verify when criticalCount == 0')
+console.assert(evalReview.canProceedToVerify === true, 'must allow progression to verify')
+console.log('fix trigger (critical-only): OK')
+
+// Test 12: Tiered Review Anti-Affinity
+const reviewRouteCodex = execFileSync(process.execPath, [
+  join(skillDir, 'scripts/route.mjs'),
+  '--input', JSON.stringify({ phase: 'review', currentAgent: 'codex', currentModel: 'gpt-6-astra' })
+], { encoding: 'utf8', timeout: 10000, cwd: scriptDir })
+const reviewDecision = JSON.parse(reviewRouteCodex.trim())
+console.assert(reviewDecision.antiAffinity && reviewDecision.antiAffinity.tier >= 3, 'review should achieve high anti-affinity tier')
+console.log('review anti-affinity tier:', reviewDecision.antiAffinity.tier, '| desc:', reviewDecision.antiAffinity.description)
+
+// Test 13: Verify route execution capability check
+const verifyRoute = execFileSync(process.execPath, [
+  join(skillDir, 'scripts/route.mjs'),
+  '--input', JSON.stringify({ phase: 'verify' })
+], { encoding: 'utf8', timeout: 10000, cwd: scriptDir })
+const verifyDecision = JSON.parse(verifyRoute.trim())
+console.assert(verifyDecision.executionCapability?.canExecuteTests === true, 'verify route must ensure test/evidence execution capability')
+console.log('verify execution capability check: OK (host:', verifyDecision.agent, ')')
+
 console.log('\n=== All tests passed ✓ ===\n')

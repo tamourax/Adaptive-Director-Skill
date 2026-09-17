@@ -224,21 +224,37 @@ After the **review** phase:
    [SUGGESTION] <title>
    ```
 
-2. Write phase result with findings JSON.
-
-3. Check for CRITICAL findings:
-
+2. Write phase result with findings JSON:
+```bash
+node scripts/run-state.mjs write-phase \
+  --run-id run-abc123 \
+  --phase review \
+  --status completed \
+  --summary "Completed review" \
+  --findings-json '[...]'
 ```
-Critical found?
-├── No  → continue to Verify
-└── Yes → enter Fix Loop
+
+3. Evaluate review findings via CLI or inspect returned counts:
+```bash
+node scripts/run-state.mjs eval-review --run-id run-abc123
+```
+
+**Decision Logic:**
+```text
+critical_count > 0
+→ Fix
+→ Re-review
+
+critical_count == 0
+→ Verify
+(Warnings > 0 and suggestions > 0 are logged in the report but do NOT trigger Fix cycle)
 ```
 
 ---
 
 ## Fix Loop
 
-Maximum: **1 automatic cycle**.
+Maximum: **1 automatic cycle**. Triggered ONLY if `critical_count > 0`.
 
 ### Fix phase
 
