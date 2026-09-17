@@ -71,28 +71,60 @@ function loadDelegateLanes() {
   const paths = [
     join(process.cwd(), '.delegate', 'fleet.yaml'),
     join(homedir(), '.delegate', 'fleet.yaml'),
+    join(process.cwd(), '.delegate', 'config.json'),
+    join(homedir(), '.config', 'delegate-skills', 'config.json'),
   ]
+
+  const lanes = {}
 
   for (const p of paths) {
     if (!existsSync(p)) continue
     try {
-      const raw = readFileSync(p, 'utf8')
-      const lanes = {}
-      let current = null
-      for (const line of raw.split('\n')) {
-        const laneMatch = line.match(/^  (\w[\w-]*):\s*$/)
-        const implMatch = line.match(/^\s+implementer:\s*(.+)$/)
-        const modelMatch = line.match(/^\s+model:\s*(.+)$/)
-        const effortMatch = line.match(/^\s+effort:\s*(.+)$/)
-        if (laneMatch)   { current = laneMatch[1]; lanes[current] = {} }
-        if (current && implMatch)   lanes[current].agent  = implMatch[1].trim()
-        if (current && modelMatch)  lanes[current].model  = modelMatch[1].trim()
-        if (current && effortMatch) lanes[current].effort = effortMatch[1].trim()
+      if (p.endsWith('.json')) {
+        const raw = JSON.parse(readFileSync(p, 'utf8'))
+        if (raw.lanes && typeof raw.lanes === 'object') {
+          for (const [lane, def] of Object.entries(raw.lanes)) {
+            lanes[lane] = {
+              agent: def.implementer ?? def.agent,
+              model: def.model ?? null,
+              effort: def.effort ?? def.variant ?? null,
+              implementer: def.implementer ?? def.agent,
+            }
+          }
+        }
+      } else {
+        const raw = readFileSync(p, 'utf8')
+        let current = null
+        for (const line of raw.split('\n')) {
+          const laneMatch = line.match(/^  (\w[\w-]*):\s*$/)
+          const implMatch = line.match(/^\s+implementer:\s*(.+)$/)
+          const modelMatch = line.match(/^\s+model:\s*(.+)$/)
+          const effortMatch = line.match(/^\s+effort:\s*(.+)$/)
+          if (laneMatch)   { current = laneMatch[1]; lanes[current] = {} }
+          if (current && implMatch)   lanes[current].agent  = implMatch[1].trim()
+          if (current && modelMatch)  lanes[current].model  = modelMatch[1].trim()
+          if (current && effortMatch) lanes[current].effort = effortMatch[1].trim()
+        }
       }
-      return lanes
     } catch { continue }
   }
-  return {}
+
+  // If no explicit lanes found, check installed delegate skills
+  if (Object.keys(lanes).length === 0) {
+    const agentsSkillsDir = join(homedir(), '.agents', 'skills')
+    if (existsSync(join(agentsSkillsDir, 'codex-delegate'))) {
+      lanes.feature   = { agent: 'codex', implementer: 'codex' }
+      lanes.implement = { agent: 'codex', implementer: 'codex' }
+      lanes.fix       = { agent: 'codex', implementer: 'codex' }
+    }
+    if (existsSync(join(agentsSkillsDir, 'agy-delegate'))) {
+      lanes.plan   = { agent: 'agy', implementer: 'agy' }
+      lanes.review = { agent: 'agy', implementer: 'agy' }
+      lanes.verify = { agent: 'agy', implementer: 'agy' }
+    }
+  }
+
+  return lanes
 }
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
