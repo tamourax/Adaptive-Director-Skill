@@ -56,7 +56,7 @@ Location: `data/registry.json`
 The routing script applies this order:
 
 ```
-1. User explicit override  (config.yaml agentOverrides.*)
+1. User explicit override  (config.json agentOverrides.*)
 2. Delegate lane preference (fleet.yaml, only when --delegate)
 3. Built-in registry        (best available agent by score)
 4. Fallback                 (claude)
@@ -64,16 +64,20 @@ The routing script applies this order:
 
 ---
 
-## User Override (config.yaml)
+## User Override (config.json)
 
-```yaml
-agentOverrides.plan:      claude
-agentOverrides.implement: codex
-agentOverrides.review:    claude
-agentOverrides.verify:    claude
+```json
+{
+  "overrides": {
+    "plan": "claude",
+    "implement": "codex",
+    "review": "claude",
+    "verify": "claude"
+  }
+}
 ```
 
-Uncomment lines in `~/.adaptive-orchestrator/config.yaml` to activate.
+Edit `~/.adaptive-director/config.json` to activate.
 
 ---
 

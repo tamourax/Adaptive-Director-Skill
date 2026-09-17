@@ -27,12 +27,26 @@ function runStateCmd(command, args) {
   return JSON.parse(out.trim())
 }
 
+function runSync(script, args) {
+  const out = execFileSync(process.execPath, [join(scriptDir, script), ...args], {
+    encoding: 'utf8', timeout: 10000, cwd: scriptDir
+  })
+  return out;
+}
+
 console.log('\n=== Smoke Tests ===\n')
 
-// Test 1: route — medium / review
-const r1 = routePhase('medium', 'review', 'balanced', false, false)
-console.log('route medium/review/balanced:', JSON.stringify(r1))
-console.assert(r1.effort === 'high', 'review effort should be high in balanced mode')
+// Test 1: CLI Help
+try {
+  const cliHelp = runSync('scripts/cli.mjs', ['help']);
+  if (!cliHelp.includes('Adaptive Director Skill CLI')) {
+    throw new Error('cli help output invalid');
+  }
+  console.log('cli help: OK');
+} catch (e) {
+  console.error('cli help failed: ' + e.message);
+  process.exit(1);
+}
 
 // Test 2: route — small / implement
 const r2 = routePhase('small', 'implement', 'conservative', false, false)

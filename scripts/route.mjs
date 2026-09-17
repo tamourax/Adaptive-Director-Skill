@@ -45,21 +45,20 @@ function loadRegistry() {
 
 // ─── User config ──────────────────────────────────────────────────────────────
 
-const USER_CONFIG_PATH = existsSync(join(homedir(), '.adaptive-director', 'config.yaml'))
-  ? join(homedir(), '.adaptive-director', 'config.yaml')
-  : join(homedir(), '.adaptive-orchestrator', 'config.yaml')
+const USER_CONFIG_PATH = existsSync(join(homedir(), '.adaptive-director', 'config.json'))
+  ? join(homedir(), '.adaptive-director', 'config.json')
+  : join(homedir(), '.adaptive-orchestrator', 'config.json')
 
 function loadUserConfig() {
   if (!existsSync(USER_CONFIG_PATH)) return {}
-  // Simple YAML parser (key: value only, no nesting needed here)
-  const raw = readFileSync(USER_CONFIG_PATH, 'utf8')
-  const config = {}
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^(\w[\w.]*?):\s*(.+)$/)
-    if (m) config[m[1].trim()] = m[2].trim()
+  try {
+    const raw = readFileSync(USER_CONFIG_PATH, 'utf8')
+    return JSON.parse(raw)
+  } catch {
+    return {}
   }
-  return config
 }
+
 
 // ─── Delegate fleet ───────────────────────────────────────────────────────────
 
@@ -154,7 +153,7 @@ function route(input) {
 
   // ── 1. User explicit override ────────────────────────────────────────────
   const overrideKey = `agentOverrides.${phase}`
-  const explicitAgent = userConfig[overrideKey] ?? userConfig[`override_${phase}`]
+  const explicitAgent = userConfig?.overrides?.[phase] ?? userConfig[overrideKey] ?? userConfig[`override_${phase}`]
   if (explicitAgent) {
     const effort = computeEffort(registry, budget, phase, allowMax)
     return { agent: explicitAgent, model: null, effort, execution: 'native' }
