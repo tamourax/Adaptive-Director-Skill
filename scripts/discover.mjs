@@ -16,6 +16,7 @@ import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { discoverHostModels } from '../skills/adaptive-director/scripts/discover-models.mjs'
 
 // ─── Known agents ─────────────────────────────────────────────────────────────
 
@@ -128,11 +129,12 @@ function discover() {
     }
 
     agents[desc.id] = {
-      installed:  true,
-      available:  version !== null,
-      version:    version ?? 'unknown',
-      skillPath:  detectedSkillPath,
-      hasSkill:   detectedSkillPath ? existsSync(join(detectedSkillPath, 'adaptive-director')) || existsSync(join(detectedSkillPath, 'Adaptive-Director')) || existsSync(join(detectedSkillPath, 'adaptive-director-skill')) : false
+      installed:       true,
+      available:       version !== null,
+      version:         version ?? 'unknown',
+      skillPath:       detectedSkillPath,
+      hasSkill:        detectedSkillPath ? existsSync(join(detectedSkillPath, 'adaptive-director')) || existsSync(join(detectedSkillPath, 'Adaptive-Director')) || existsSync(join(detectedSkillPath, 'adaptive-director-skill')) : false,
+      availableModels: discoverHostModels(desc.id),
     }
   }
 

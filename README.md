@@ -174,12 +174,39 @@ adaptive-director help      # Show usage
 
 ## Core Principles
 
-- **Routing Priority:** User overrides → Delegate fleet lanes → Capability registry → Default fallback.
+- **Dynamic Discovery:** Discovers installed host CLIs and inspects locally available models at runtime rather than assuming static pairings.
+- **Routing Priority:** User overrides → Delegate fleet lanes → Dynamic Host Discovery → Capability registry → Default fallback.
 - **Independent Review:** The coder never reviews its own work.
+- **Verification Dimension:** Independent verification requires dedicated verification capabilities (`min_verification: 3`).
 - **Max Reasoning Opt-in:** `max` effort is locked by default; requires `--allow-max`.
 - **Runaway Loop Protection:** Maximum 1 automated fix cycle before alerting the user.
 - **Context Isolation:** Each agent receives only a self-contained brief on disk (`.adaptive-director/runs/`), preventing context window bloat.
 - **Zero Dependencies:** Runs on vanilla Node.js 18+.
+
+---
+
+## Dynamic Model Discovery & Heuristics
+
+Adaptive Director does **not** rely on rigid, hardcoded host-to-model pairings. Real-world model availability depends on local CLI versions, host configurations, and account subscriptions.
+
+### Routing Pipeline
+
+```text
+Detect Host CLI
+       ↓
+Discover Locally Available Models (cache / config / env)
+       ↓
+Resolve Aliases (e.g. 'astra' → 'gpt-6-astra')
+       ↓
+Intersect with Registry Capabilities & Phase Requirements
+       ↓
+Score Compatible Candidates for Current Phase
+       ↓
+Route to Optimal Candidate (with Graceful Fallback)
+```
+
+> [!NOTE]
+> **Heuristic Calibration Disclaimer:** Capability scores (1–5) in `data/registry.json` represent internal routing heuristics and priors calibrated for phase allocation. They are **not** vendor laboratory benchmarks or absolute leaderboards.
 
 ---
 
