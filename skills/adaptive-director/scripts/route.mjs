@@ -127,6 +127,21 @@ function loadDelegateLanes() {
   return lanes
 }
 
+export function findRelayScript(agentId) {
+  if (!agentId) return null
+  const candidates = [
+    join(homedir(), '.agents', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(process.cwd(), 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(process.cwd(), '.skills', 'amElnagdy', 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(homedir(), '.skills', 'amElnagdy', 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(homedir(), '.codex', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+  ]
+  for (const c of candidates) {
+    if (existsSync(c)) return c
+  }
+  return null
+}
+
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 function resolveModelAlias(registry, modelId) {
@@ -279,9 +294,10 @@ export function route(input = {}) {
     currentAgent    = null,
   } = input
 
-  const registry   = loadRegistry()
-  const userConfig = loadUserConfig()
-  const lanes      = loadDelegateLanes()
+  const registry        = loadRegistry()
+  const userConfig      = loadUserConfig()
+  const lanes           = loadDelegateLanes()
+  const installedAgents = discoverAllInstalledAgents(userConfig)
 
   // ── 1. User explicit override ────────────────────────────────────────────
   const overrideKey = `agentOverrides.${phase}`
@@ -295,13 +311,59 @@ export function route(input = {}) {
   if (delegateEnabled && Object.keys(lanes).length > 0) {
     const laneForPhase = findLaneForPhase(lanes, phase)
     if (laneForPhase) {
-      const effort = laneForPhase.effort ?? computeEffort(registry, budget, phase, allowMax)
-      return {
-        agent:     laneForPhase.agent,
-        model:     laneForPhase.model ?? null,
-        effort,
-        execution: 'delegate',
+      const relayPath = findRelayScript(laneForPhase.agent)
+      // Failure Path 1: Check if relay script exists on disk
+      if (relayPath) {
+        let selectedModel = laneForPhase.model ?? AGENT_MODEL_MAP[laneForPhase.agent] ?? null
+        let modelFallback = null
+
+        // Failure Path 4: Validate requested model
+        if (selectedModel) {
+          const canonical = resolveModelAlias(registry, selectedModel)
+          const hostAvail = installedAgents[laneForPhase.agent]?.availableModels
+          const isKnown = (hostAvail && hostAvail.length > 0)
+            ? hostAvail.some(m => resolveModelAlias(registry, m) === canonical)
+            : (registry.models?.[canonical] !== undefined)
+
+          if (!isKnown) {
+            // Requested model unavailable -> select verified model from host discovery
+            let verifiedFallback = null
+            if (hostAvail && hostAvail.length > 0) {
+              for (const m of hostAvail) {
+                const can = resolveModelAlias(registry, m)
+                if (meetsRequirement(registry, can, phase)) {
+                  verifiedFallback = can
+                  break
+                }
+              }
+              if (!verifiedFallback) verifiedFallback = resolveModelAlias(registry, hostAvail[0])
+            }
+            if (!verifiedFallback) {
+              verifiedFallback = AGENT_MODEL_MAP[laneForPhase.agent] ?? null
+            }
+
+            modelFallback = {
+              requested: selectedModel,
+              fallback: verifiedFallback,
+              verifiedOnHost: Boolean(hostAvail && hostAvail.length > 0),
+              reason: `Requested model '${selectedModel}' not available for host ${laneForPhase.agent}. Fallback to verified host model.`
+            }
+            selectedModel = verifiedFallback
+          }
+        }
+
+        const effort = laneForPhase.effort ?? computeEffort(registry, budget, phase, allowMax)
+        const res = {
+          agent:     laneForPhase.agent,
+          model:     selectedModel,
+          effort,
+          execution: 'delegate',
+          relayPath,
+        }
+        if (modelFallback) res.modelFallback = modelFallback
+        return res
       }
+      // If relayPath is null (Failure Path 1: Relay not found), fall through to native pipeline
     }
   }
 
@@ -312,8 +374,6 @@ export function route(input = {}) {
     : (phase === 'plan' || phase === 'review')
       ? AGENT_PRIORITY_FOR_PLANNING
       : AGENT_PRIORITY_FOR_CODING
-
-  const installedAgents = discoverAllInstalledAgents(userConfig)
 
   // Identify implementer identity for independent review enforcement
   const rawCurrent = currentModel && currentModel !== 'unknown' ? currentModel.toLowerCase() : null

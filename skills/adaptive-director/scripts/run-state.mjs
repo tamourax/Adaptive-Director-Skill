@@ -347,6 +347,11 @@ function cmdBuildBrief(args) {
       brief = task ?? ''
   }
 
+  // Persist brief file to run workspace for direct relay/agent consumption
+  try {
+    writeFileSync(join(dir, `brief-${phase}.md`), brief, 'utf8')
+  } catch {}
+
   process.stdout.write(brief + '\n')
 }
 
