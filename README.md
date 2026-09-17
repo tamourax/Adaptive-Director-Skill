@@ -142,10 +142,11 @@ The repository separates the **npm management/installer layer** from the **self-
 Adaptive-Director-Skill/
 ├── scripts/                      # Management & CLI layer
 │   ├── cli.mjs                   # Main CLI router
-│   ├── setup.mjs                 # Interactive host setup
+│   ├── setup.mjs                 # Interactive host setup & delegate integration
+│   ├── delegate-cli.mjs          # Delegate skills integration CLI
 │   ├── install.mjs               # Idempotent skill copier
 │   ├── refresh.mjs               # Safe config refresher
-│   ├── discover.mjs              # Local agent discovery
+│   ├── discover.mjs              # Local agent & delegate discovery
 │   ├── doctor.mjs                # Installation diagnostics
 │   └── smoke-test.mjs            # Automated test suite
 │
@@ -163,11 +164,15 @@ Adaptive-Director-Skill/
 ## CLI Commands
 
 ```bash
-adaptive-director setup     # Interactive: discover hosts, install Skill, create config
-adaptive-director install   # Re-install/update Skill in host directories
-adaptive-director refresh   # Re-discover hosts & update config (preserves overrides)
-adaptive-director doctor    # Validate installation and health
-adaptive-director help      # Show usage
+adaptive-director setup               # Interactive: discover hosts, install Skill, configure delegate
+adaptive-director setup --with-delegate # Setup and automatically install delegate-skills
+adaptive-director setup --no-delegate   # Setup skipping delegate-skills (native execution)
+adaptive-director delegate install    # Install delegate-skills via official installer
+adaptive-director delegate status     # Check delegate-skills discovery and relay status
+adaptive-director install             # Re-install/update Skill in host directories
+adaptive-director refresh             # Re-discover hosts & update config (preserves overrides)
+adaptive-director doctor              # Validate installation and health
+adaptive-director help                # Show usage
 ```
 
 ---

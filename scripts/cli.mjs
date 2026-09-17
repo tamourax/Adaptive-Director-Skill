@@ -15,20 +15,23 @@ const commands = {
   install: 'install.mjs',
   refresh: 'refresh.mjs',
   doctor: 'doctor.mjs',
+  delegate: 'delegate-cli.mjs',
 };
 
 if (command === 'help' || command === '--help' || command === '-h') {
-  console.log(`Adaptive Director Skill CLI v1.1.0
+  console.log(`Adaptive Director Skill CLI v1.1.1
 
 Usage:
-  adaptive-director <command>
+  adaptive-director <command> [options]
 
 Commands:
-  setup    - Initial interactive setup and installation
-  install  - Install/copy the Skill into supported host skill directories
-  refresh  - Re-run discovery and update config without destroying user overrides
-  doctor   - Validate installation and report health
-  help     - Show this help message
+  setup     - Initial interactive setup and host/delegate configuration
+              Flags: --with-delegate, --no-delegate, --yes
+  install   - Install/copy the Skill into supported host skill directories
+  refresh   - Re-run discovery and update config without destroying user overrides
+  doctor    - Validate installation and report health
+  delegate  - Manage delegate-skills integration (install, status)
+  help      - Show this help message
 `);
   process.exit(0);
 }

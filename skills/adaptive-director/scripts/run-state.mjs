@@ -96,7 +96,41 @@ function cmdWritePhase(args) {
     try { findings = JSON.parse(findingsRaw) } catch { findings = [] }
   }
 
-  const result = { phase, status, summary, findings }
+  const criticalFindings   = findings.filter(f => (f.severity || '').toLowerCase() === 'critical')
+  const warningFindings    = findings.filter(f => (f.severity || '').toLowerCase() === 'warning')
+  const suggestionFindings = findings.filter(f => (f.severity || '').toLowerCase() === 'suggestion')
+
+  const counts = {
+    critical: criticalFindings.length,
+    warning: warningFindings.length,
+    suggestion: suggestionFindings.length,
+    total: findings.length,
+  }
+
+  // Concept spec Section 7 & 8:
+  // Fix cycle is ONLY triggered if critical_count > 0.
+  // Warnings and suggestions are recorded in the report but do NOT trigger fix or block progression to verify.
+  const needsFix = counts.critical > 0
+  const nextPhase = (phase === 'review')
+    ? (needsFix ? 'fix' : 'verify')
+    : null
+
+  const resolvedStatus = (phase === 'review' && status === 'completed')
+    ? (needsFix ? 'needs_fix' : 'passed')
+    : status
+
+  const result = {
+    phase,
+    status: resolvedStatus,
+    summary,
+    findings,
+    counts,
+    criticalCount: counts.critical,
+    warningCount: counts.warning,
+    suggestionCount: counts.suggestion,
+    needsFix,
+    nextPhase,
+  }
 
   // .json (machine contract)
   writeFileSync(phaseJsonPath(runId, phase), JSON.stringify(result, null, 2), 'utf8')
@@ -105,14 +139,24 @@ function cmdWritePhase(args) {
   const lines = [
     `# ${capitalize(phase)} Result`,
     '',
-    `**Status:** ${status}`,
+    `**Status:** ${resolvedStatus}`,
     '',
     '## Summary',
     '',
     summary,
   ]
   if (findings.length > 0) {
-    lines.push('', '## Findings', '')
+    lines.push(
+      '',
+      '## Findings Summary',
+      '',
+      `- **Critical:** ${counts.critical} ${counts.critical > 0 ? '(Fix cycle required)' : '(None - Proceed to verification)'}`,
+      `- **Warning:** ${counts.warning} (Advisory - does not block)`,
+      `- **Suggestion:** ${counts.suggestion} (Informational)`,
+      '',
+      '## Detailed Findings',
+      ''
+    )
     for (const f of findings) {
       lines.push(`### [${f.severity?.toUpperCase() ?? 'NOTE'}] ${f.title ?? ''}`)
       if (f.file) lines.push(`**File:** \`${f.file}\``)
@@ -121,7 +165,17 @@ function cmdWritePhase(args) {
   }
   writeFileSync(phaseMdPath(runId, phase), lines.join('\n'), 'utf8')
 
-  out({ ok: true, phase, status })
+  out({
+    ok: true,
+    phase,
+    status: resolvedStatus,
+    counts,
+    criticalCount: counts.critical,
+    warningCount: counts.warning,
+    suggestionCount: counts.suggestion,
+    needsFix,
+    nextPhase,
+  })
 }
 
 function cmdReadPhase(args) {
@@ -130,6 +184,32 @@ function cmdReadPhase(args) {
   const path  = phaseJsonPath(runId, phase)
   if (!existsSync(path)) { out(null); return }
   out(JSON.parse(readFileSync(path, 'utf8')))
+}
+
+function cmdEvalReview(args) {
+  const runId = requireArg(args, '--run-id')
+  const path  = phaseJsonPath(runId, 'review')
+  if (!existsSync(path)) {
+    out({ ok: false, error: `Review phase not found for run ${runId}` })
+    return
+  }
+  const rev = JSON.parse(readFileSync(path, 'utf8'))
+  const findings = rev.findings ?? []
+  const critical = findings.filter(f => (f.severity || '').toLowerCase() === 'critical').length
+  const warning  = findings.filter(f => (f.severity || '').toLowerCase() === 'warning').length
+  const suggestion = findings.filter(f => (f.severity || '').toLowerCase() === 'suggestion').length
+  const needsFix = critical > 0
+
+  out({
+    ok: true,
+    runId,
+    criticalCount: critical,
+    warningCount: warning,
+    suggestionCount: suggestion,
+    needsFix,
+    nextPhase: needsFix ? 'fix' : 'verify',
+    canProceedToVerify: !needsFix,
+  })
 }
 
 function cmdBuildBrief(args) {
@@ -267,6 +347,11 @@ function cmdBuildBrief(args) {
       brief = task ?? ''
   }
 
+  // Persist brief file to run workspace for direct relay/agent consumption
+  try {
+    writeFileSync(join(dir, `brief-${phase}.md`), brief, 'utf8')
+  } catch {}
+
   process.stdout.write(brief + '\n')
 }
 
@@ -330,11 +415,12 @@ try {
     case 'read':        cmdRead(args);        break
     case 'write-phase': cmdWritePhase(args);  break
     case 'read-phase':  cmdReadPhase(args);   break
+    case 'eval-review': cmdEvalReview(args);  break
     case 'build-brief': cmdBuildBrief(args);  break
     case 'list':        cmdList();            break
     default:
       process.stderr.write(`Unknown command: ${command}\n`)
-      process.stderr.write('Commands: init, update, read, write-phase, read-phase, build-brief, list\n')
+      process.stderr.write('Commands: init, update, read, write-phase, read-phase, eval-review, build-brief, list\n')
       process.exit(2)
   }
 } catch (err) {

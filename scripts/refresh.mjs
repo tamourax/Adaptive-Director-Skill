@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function run(script, args = []) {
+function run(script, args = [], env = process.env) {
   try {
     const out = execFileSync(process.execPath, [script, ...args], {
       encoding: 'utf8', timeout: 15000,
       cwd: process.cwd(),
+      env,
     });
     return JSON.parse(out.trim());
   } catch (e) {
@@ -24,7 +25,7 @@ const configPath = join(configDir, 'config.json');
 
 console.log('Refreshing Adaptive Director config...\n');
 
-const discovery = run(join(__dirname, 'discover.mjs'));
+const discovery = run(join(__dirname, 'discover.mjs'), [], process.env);
 if (!discovery) {
   console.error('✗ Discovery failed.');
   process.exit(1);
@@ -39,11 +40,20 @@ if (existsSync(configPath)) {
   }
 }
 
+const delegateInstalled = Boolean(discovery.delegateSkills?.installed);
+const delegateEnabled = existingConfig.delegate?.enabled ?? existingConfig.delegateEnabled ?? false;
+
 const config = {
   version: 1,
+  execution: existingConfig.execution || 'native',
   defaultBudget: existingConfig.defaultBudget || 'balanced',
   allowMax: existingConfig.allowMax || false,
-  delegateEnabled: existingConfig.delegateEnabled || false,
+  delegateEnabled,
+  delegate: {
+    installed: delegateInstalled,
+    enabled: delegateEnabled,
+    ...(existingConfig.delegate?.lastInstallAttempt ? { lastInstallAttempt: existingConfig.delegate.lastInstallAttempt } : {})
+  },
   hosts: {},
   overrides: existingConfig.overrides || {}
 };
@@ -51,6 +61,7 @@ const config = {
 for (const [id, info] of Object.entries(discovery.agents ?? {})) {
   if (info.installed) {
     config.hosts[id] = {
+      ...existingConfig.hosts?.[id],
       enabled: existingConfig.hosts?.[id]?.enabled ?? true,
       skillPath: info.skillPath
     };

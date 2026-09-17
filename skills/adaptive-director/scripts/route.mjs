@@ -127,6 +127,21 @@ function loadDelegateLanes() {
   return lanes
 }
 
+export function findRelayScript(agentId) {
+  if (!agentId) return null
+  const candidates = [
+    join(homedir(), '.agents', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(process.cwd(), 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(process.cwd(), '.skills', 'amElnagdy', 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(homedir(), '.skills', 'amElnagdy', 'delegate-skills', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+    join(homedir(), '.codex', 'skills', `${agentId}-delegate`, 'scripts', 'relay.mjs'),
+  ]
+  for (const c of candidates) {
+    if (existsSync(c)) return c
+  }
+  return null
+}
+
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 function resolveModelAlias(registry, modelId) {
@@ -191,10 +206,84 @@ const AGENT_MODEL_MAP = {
 // Fallback priority order (best-to-acceptable)
 const AGENT_PRIORITY_FOR_PLANNING = ['agy', 'claude', 'gemini', 'opencode', 'cursor', 'cline', 'copilot', 'aider', 'codex']
 const AGENT_PRIORITY_FOR_CODING   = ['codex', 'aider', 'opencode', 'cursor', 'cline', 'claude', 'agy', 'copilot', 'gemini']
+const AGENT_PRIORITY_FOR_VERIFY   = ['codex', 'agy', 'claude', 'opencode', 'cursor', 'cline', 'copilot', 'aider']
+
+// ─── Execution Capabilities ───────────────────────────────────────────────────
+
+export const AGENT_EXECUTION_CAPABILITIES = {
+  codex:    { shell: true, fs: true, tests: true, evidence: true },
+  agy:      { shell: true, fs: true, tests: true, evidence: true },
+  claude:   { shell: true, fs: true, tests: true, evidence: true },
+  opencode: { shell: true, fs: true, tests: true, evidence: true },
+  aider:    { shell: true, fs: true, tests: true, evidence: true },
+  cursor:   { shell: true, fs: true, tests: true, evidence: true },
+  cline:    { shell: true, fs: true, tests: true, evidence: true },
+  copilot:  { shell: true, fs: true, tests: true, evidence: true },
+  gemini:   { shell: false, fs: false, tests: false, evidence: false }, // Standalone gemini CLI is conversational without host tool execution
+}
+
+export function hasExecutionCapability(agentId, userConfig = {}) {
+  const hostConf = userConfig?.hosts?.[agentId]
+  if (hostConf?.can_execute !== undefined) return Boolean(hostConf.can_execute)
+  if (hostConf?.execution !== undefined) return Boolean(hostConf.execution)
+  if (hostConf?.capabilities?.shell !== undefined) return Boolean(hostConf.capabilities.shell)
+  if (hostConf?.capabilities?.tests !== undefined) return Boolean(hostConf.capabilities.tests)
+  return AGENT_EXECUTION_CAPABILITIES[agentId]?.evidence ?? true
+}
+
+// ─── Model Family & Review Anti-Affinity Tiers ────────────────────────────────
+
+export function getModelFamily(modelId, registry = {}) {
+  if (!modelId || modelId === 'unknown') return 'unknown'
+  const resolved = resolveModelAlias(registry, modelId).toLowerCase()
+  if (resolved.startsWith('gpt-') || resolved.startsWith('o1') || resolved.startsWith('o3') || resolved.startsWith('o4') || resolved.includes('openai') || resolved.includes('astra') || resolved.includes('sol') || resolved.includes('terra') || resolved.includes('luna')) return 'openai'
+  if (resolved.startsWith('claude') || resolved.includes('fable') || resolved.includes('opus') || resolved.includes('sonnet') || resolved.includes('haiku')) return 'anthropic'
+  if (resolved.startsWith('gemini')) return 'google'
+  if (resolved.startsWith('glm')) return 'zhipu'
+  if (resolved.startsWith('deepseek')) return 'deepseek'
+  if (resolved.startsWith('qwen')) return 'alibaba'
+  if (resolved.startsWith('llama')) return 'meta'
+  return resolved.split(/[-._]/)[0] || 'unknown'
+}
+
+/**
+ * Review Anti-Affinity Policy (Concept Spec Section 8):
+ * Tier 4 (Best):                different agent + different model family
+ * Tier 3 (Good):                same agent + different model family
+ * Tier 2 (Acceptable fallback): different agent + same model family
+ * Tier 1 (Last resort):         same agent + same model/family
+ */
+export function getReviewAntiAffinityTier(candidate, implAgent, implModel, registry = {}) {
+  if (!implAgent && !implModel) {
+    return { tier: 4, label: 'Tier 4: no implementer constraint' }
+  }
+
+  const candAgent = (candidate.agent || '').toLowerCase()
+  const candModel = (candidate.model || '').toLowerCase()
+  const targetAgent = (implAgent || '').toLowerCase()
+  const targetModel = (implModel || '').toLowerCase()
+
+  const diffAgent = targetAgent ? candAgent !== targetAgent : true
+
+  const candFamily = getModelFamily(candModel, registry)
+  const targetFamily = targetModel ? getModelFamily(targetModel, registry) : 'unknown'
+  const diffFamily = (targetFamily && targetFamily !== 'unknown') ? candFamily !== targetFamily : true
+
+  if (diffAgent && diffFamily) {
+    return { tier: 4, label: 'Tier 4 (Best): different agent + different model family' }
+  }
+  if (!diffAgent && diffFamily) {
+    return { tier: 3, label: 'Tier 3 (Good): same agent + different model family' }
+  }
+  if (diffAgent && !diffFamily) {
+    return { tier: 2, label: 'Tier 2 (Acceptable fallback): different agent + same model family' }
+  }
+  return { tier: 1, label: 'Tier 1 (Last resort): same agent + same model' }
+}
 
 // ─── Main routing logic ───────────────────────────────────────────────────────
 
-function route(input) {
+export function route(input = {}) {
   const {
     taskSize        = 'medium',
     phase           = 'implement',
@@ -202,11 +291,13 @@ function route(input) {
     allowMax        = false,
     delegateEnabled = false,
     currentModel    = 'unknown',
+    currentAgent    = null,
   } = input
 
-  const registry   = loadRegistry()
-  const userConfig = loadUserConfig()
-  const lanes      = loadDelegateLanes()
+  const registry        = loadRegistry()
+  const userConfig      = loadUserConfig()
+  const lanes           = loadDelegateLanes()
+  const installedAgents = discoverAllInstalledAgents(userConfig)
 
   // ── 1. User explicit override ────────────────────────────────────────────
   const overrideKey = `agentOverrides.${phase}`
@@ -220,23 +311,75 @@ function route(input) {
   if (delegateEnabled && Object.keys(lanes).length > 0) {
     const laneForPhase = findLaneForPhase(lanes, phase)
     if (laneForPhase) {
-      const effort = laneForPhase.effort ?? computeEffort(registry, budget, phase, allowMax)
-      return {
-        agent:     laneForPhase.agent,
-        model:     laneForPhase.model ?? null,
-        effort,
-        execution: 'delegate',
+      const relayPath = findRelayScript(laneForPhase.agent)
+      // Failure Path 1: Check if relay script exists on disk
+      if (relayPath) {
+        let selectedModel = laneForPhase.model ?? AGENT_MODEL_MAP[laneForPhase.agent] ?? null
+        let modelFallback = null
+
+        // Failure Path 4: Validate requested model
+        if (selectedModel) {
+          const canonical = resolveModelAlias(registry, selectedModel)
+          const hostAvail = installedAgents[laneForPhase.agent]?.availableModels
+          const isKnown = (hostAvail && hostAvail.length > 0)
+            ? hostAvail.some(m => resolveModelAlias(registry, m) === canonical)
+            : (registry.models?.[canonical] !== undefined)
+
+          if (!isKnown) {
+            // Requested model unavailable -> select verified model from host discovery
+            let verifiedFallback = null
+            if (hostAvail && hostAvail.length > 0) {
+              for (const m of hostAvail) {
+                const can = resolveModelAlias(registry, m)
+                if (meetsRequirement(registry, can, phase)) {
+                  verifiedFallback = can
+                  break
+                }
+              }
+              if (!verifiedFallback) verifiedFallback = resolveModelAlias(registry, hostAvail[0])
+            }
+            if (!verifiedFallback) {
+              verifiedFallback = AGENT_MODEL_MAP[laneForPhase.agent] ?? null
+            }
+
+            modelFallback = {
+              requested: selectedModel,
+              fallback: verifiedFallback,
+              verifiedOnHost: Boolean(hostAvail && hostAvail.length > 0),
+              reason: `Requested model '${selectedModel}' not available for host ${laneForPhase.agent}. Fallback to verified host model.`
+            }
+            selectedModel = verifiedFallback
+          }
+        }
+
+        const effort = laneForPhase.effort ?? computeEffort(registry, budget, phase, allowMax)
+        const res = {
+          agent:     laneForPhase.agent,
+          model:     selectedModel,
+          effort,
+          execution: 'delegate',
+          relayPath,
+        }
+        if (modelFallback) res.modelFallback = modelFallback
+        return res
       }
+      // If relayPath is null (Failure Path 1: Relay not found), fall through to native pipeline
     }
   }
 
   // ── 3. Dynamic Host & Model Discovery Pipeline ───────────────────────────
   // Detect host → Detect actually available models → resolve aliases → intersect with registry → score compatible candidates → route → fallback
-  const priorityList = (phase === 'plan' || phase === 'review' || phase === 'verify')
-    ? AGENT_PRIORITY_FOR_PLANNING
-    : AGENT_PRIORITY_FOR_CODING
+  const priorityList = (phase === 'verify')
+    ? AGENT_PRIORITY_FOR_VERIFY
+    : (phase === 'plan' || phase === 'review')
+      ? AGENT_PRIORITY_FOR_PLANNING
+      : AGENT_PRIORITY_FOR_CODING
 
-  const installedAgents = discoverAllInstalledAgents(userConfig)
+  // Identify implementer identity for independent review enforcement
+  const rawCurrent = currentModel && currentModel !== 'unknown' ? currentModel.toLowerCase() : null
+  const KNOWN_AGENTS = ['agy', 'codex', 'claude', 'gemini', 'opencode', 'aider', 'cursor', 'cline', 'copilot']
+  const implAgent = (currentAgent ?? (rawCurrent && KNOWN_AGENTS.includes(rawCurrent) ? rawCurrent : null))?.toLowerCase()
+  const implModel = rawCurrent ? resolveModelAlias(registry, rawCurrent).toLowerCase() : null
 
   // Collect candidate options from installed agents
   const eligibleCandidates = []
@@ -244,17 +387,28 @@ function route(input) {
   for (const agentId of priorityList) {
     if (!installedAgents[agentId]) continue
 
+    // Verification requires execution capability (shell/tests/evidence check)
+    if (phase === 'verify' && !hasExecutionCapability(agentId, userConfig)) {
+      continue
+    }
+
     const availableModels = installedAgents[agentId].availableModels
     if (Array.isArray(availableModels) && availableModels.length > 0) {
       for (const rawModel of availableModels) {
         const canonicalId = resolveModelAlias(registry, rawModel)
         if (meetsRequirement(registry, canonicalId, phase)) {
-          eligibleCandidates.push({
+          const cand = {
             agent: agentId,
             model: canonicalId,
             score: phaseScore(registry, canonicalId, phase),
             source: 'dynamic_discovery',
-          })
+          }
+          if (phase === 'review') {
+            const tierInfo = getReviewAntiAffinityTier(cand, implAgent, implModel, registry)
+            cand.antiAffinityTier = tierInfo.tier
+            cand.antiAffinityLabel = tierInfo.label
+          }
+          eligibleCandidates.push(cand)
         }
       }
     } else {
@@ -262,12 +416,18 @@ function route(input) {
       const hintModel = AGENT_MODEL_MAP[agentId] ?? 'unknown'
       const canonicalId = resolveModelAlias(registry, hintModel)
       if (meetsRequirement(registry, canonicalId, phase)) {
-        eligibleCandidates.push({
+        const cand = {
           agent: agentId,
           model: canonicalId,
           score: phaseScore(registry, canonicalId, phase),
           source: 'default_hint',
-        })
+        }
+        if (phase === 'review') {
+          const tierInfo = getReviewAntiAffinityTier(cand, implAgent, implModel, registry)
+          cand.antiAffinityTier = tierInfo.tier
+          cand.antiAffinityLabel = tierInfo.label
+        }
+        eligibleCandidates.push(cand)
       }
     }
   }
@@ -275,9 +435,15 @@ function route(input) {
   // If eligible candidates were found among installed agents:
   if (eligibleCandidates.length > 0) {
     // Sort by:
-    // 1. Agent priority index in priorityList (lower index = higher priority)
-    // 2. Model score descending
+    // 1. Anti-affinity tier descending if review (Tier 4 > Tier 3 > Tier 2 > Tier 1)
+    // 2. Agent priority index in priorityList (lower index = higher priority)
+    // 3. Model score descending
     eligibleCandidates.sort((a, b) => {
+      if (phase === 'review') {
+        const tA = a.antiAffinityTier ?? 4
+        const tB = b.antiAffinityTier ?? 4
+        if (tA !== tB) return tB - tA
+      }
       const pA = priorityList.indexOf(a.agent)
       const pB = priorityList.indexOf(b.agent)
       if (pA !== pB) return pA - pB
@@ -286,21 +452,66 @@ function route(input) {
 
     const best = eligibleCandidates[0]
     const effort = computeEffort(registry, budget, phase, allowMax)
-    return { agent: best.agent, model: best.model, effort, execution: 'native' }
+    const result = { agent: best.agent, model: best.model, effort, execution: 'native' }
+    if (phase === 'review' && best.antiAffinityTier) {
+      result.antiAffinity = { tier: best.antiAffinityTier, description: best.antiAffinityLabel }
+    }
+    if (phase === 'verify') {
+      result.executionCapability = { verified: true, canExecuteTests: true }
+    }
+    return result
   }
 
   // ── 4. Fallback (if no installed agent meets requirement) ─────────────────
+  let fallbackCandidates = []
   for (const agentId of priorityList) {
+    if (phase === 'verify' && !hasExecutionCapability(agentId, userConfig)) {
+      continue
+    }
     const hintModel = AGENT_MODEL_MAP[agentId] ?? 'unknown'
     const canonicalId = resolveModelAlias(registry, hintModel)
     if (meetsRequirement(registry, canonicalId, phase)) {
-      const effort = computeEffort(registry, budget, phase, allowMax)
-      return { agent: agentId, model: canonicalId, effort, execution: 'native' }
+      const cand = { agent: agentId, model: canonicalId, score: phaseScore(registry, canonicalId, phase) }
+      if (phase === 'review') {
+        const tierInfo = getReviewAntiAffinityTier(cand, implAgent, implModel, registry)
+        cand.antiAffinityTier = tierInfo.tier
+        cand.antiAffinityLabel = tierInfo.label
+      }
+      fallbackCandidates.push(cand)
     }
   }
 
+  if (fallbackCandidates.length > 0) {
+    if (phase === 'review') {
+      fallbackCandidates.sort((a, b) => {
+        const tA = a.antiAffinityTier ?? 4
+        const tB = b.antiAffinityTier ?? 4
+        if (tA !== tB) return tB - tA
+        const pA = priorityList.indexOf(a.agent)
+        const pB = priorityList.indexOf(b.agent)
+        if (pA !== pB) return pA - pB
+        return b.score - a.score
+      })
+    }
+    const chosen = fallbackCandidates[0]
+    const effort = computeEffort(registry, budget, phase, allowMax)
+    const result = { agent: chosen.agent, model: chosen.model, effort, execution: 'native' }
+    if (phase === 'review' && chosen.antiAffinityTier) {
+      result.antiAffinity = { tier: chosen.antiAffinityTier, description: chosen.antiAffinityLabel }
+    }
+    if (phase === 'verify') {
+      result.executionCapability = { verified: true, canExecuteTests: true }
+    }
+    return result
+  }
+
   const effort = computeEffort(registry, budget, phase, allowMax)
-  return { agent: priorityList[0] ?? 'codex', model: null, effort, execution: 'native' }
+  const chosenAgent = priorityList[0] ?? 'codex'
+  const result = { agent: chosenAgent, model: null, effort, execution: 'native' }
+  if (phase === 'verify') {
+    result.executionCapability = { verified: hasExecutionCapability(chosenAgent, userConfig), canExecuteTests: true }
+  }
+  return result
 }
 
 function findLaneForPhase(lanes, phase) {
@@ -349,7 +560,16 @@ async function main() {
   process.stdout.write(JSON.stringify(result, null, 2) + '\n')
 }
 
-main().catch((err) => {
-  process.stderr.write('route.mjs error: ' + err.message + '\n')
-  process.exit(1)
-})
+const isDirectRun = process.argv[1] && (
+  process.argv[1].endsWith('route.mjs') ||
+  process.argv[1].endsWith('route')
+)
+
+if (isDirectRun) {
+  main().catch((err) => {
+    process.stderr.write('route.mjs error: ' + err.message + '\n')
+    process.exit(1)
+  })
+}
+
+export default route

@@ -98,6 +98,6 @@
   "phase_map": {
     "small":  ["implement", "review"],
     "medium": ["plan", "implement", "review", "verify"],
-    "large":  ["plan", "implement", "review", "fix", "verify"]
+    "large":  ["plan", "implement", "review", "verify"]
   }
 }
