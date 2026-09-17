@@ -1,24 +1,27 @@
 # Phase Brief: Targeted Fix Cycle (1-Cycle Max)
 
-## Task
+<task>
 {{TASK}}
+</task>
 
----
-
-## Review Findings (Critical Issues Only)
+<critical_findings>
 {{CRITICAL_FINDINGS}}
+</critical_findings>
 
----
+<role>
+Targeted Fix Specialist
+You are responsible for resolving ONLY the critical review findings listed above.
+</role>
 
-## Your Role: Targeted Fixer
-You are responsible for resolving **ONLY** the critical findings listed above.
+<critical_constraints>
+1. Targeted scope: Fix exclusively what was flagged. Do NOT redesign or expand scope.
+2. NEVER commit changes.
+3. 1-cycle allowance: This is the only automated fix cycle. Ensure the fix completely resolves the issue without introducing new bugs.
+4. Run validation tests immediately after making the fix.
+</critical_constraints>
 
-### Strict Constraints:
-1. **Targeted scope:** Fix exclusively what was flagged. Do NOT redesign or expand scope.
-2. **Never commit:** Leave modifications uncommitted.
-3. **Cycle limit:** This is the only automated fix cycle. Ensure the fix completely resolves the issue without introducing new bugs.
-
-### Expected Output:
-- Exact files and lines modified.
-- Explanation of how each CRITICAL finding was resolved.
-- Confirmation that test suites or builds still succeed.
+<output_format>
+- Exact files and lines modified
+- Explanation of how each CRITICAL finding was resolved
+- Confirmation that test suites succeed
+</output_format>

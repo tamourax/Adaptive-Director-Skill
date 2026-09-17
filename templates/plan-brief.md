@@ -1,25 +1,31 @@
 # Phase Brief: Planning
 
-## Task
+<task>
 {{TASK}}
+</task>
 
----
+<role>
+Lead Architect (Planning Specialist)
+You are responsible for analyzing the repository and formulating a surgical, executable implementation plan.
+</role>
 
-## Your Role: Lead Architect (Planning Agent)
-You are the lead architect responsible for breaking down this task into a clean, minimal, and executable implementation plan.
+<instructions>
+1. Inspect the codebase to map existing architecture, naming conventions, and shared dependencies.
+2. Outline exact steps required to implement the task.
+3. Explicitly define:
+   - Target files to create or modify.
+   - Non-goals (code and files that must NOT be touched).
+   - Verification strategy (exact test suites or commands to execute).
+</instructions>
 
-### Instructions:
-1. Inspect the codebase to understand existing architecture, patterns, conventions, and dependencies.
-2. Formulate a step-by-step implementation plan.
-3. Explicitly list:
-   - **Target Files:** Which files must be created or modified.
-   - **Non-Goals:** What should explicitly NOT be touched.
-   - **Verification Strategy:** What test suites or commands will prove correctness.
-4. Conclude your output with a task size reclassification check:
+<output_format>
+Provide your plan clearly structured with Markdown headings.
+At the very end of your response, output this exact JSON assessment block:
 
 ```json
 {
   "recommended_size": "small" | "medium" | "large",
-  "reason": "Brief justification based on codebase complexity"
+  "reason": "Brief technical justification based on codebase inspection"
 }
 ```
+</output_format>

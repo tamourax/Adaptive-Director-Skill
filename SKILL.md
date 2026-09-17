@@ -1,9 +1,9 @@
 ---
 name: adaptive-director-skill
-description: >
-  Adaptive multi-agent director for coding tasks.
-  Routes every phase (plan, implement, review, fix, verify) to the right
-  agent, model, and reasoning effort automatically.
+description: >-
+  Adaptive multi-agent director for coding tasks. Use this skill whenever the user
+  asks to implement features, fix complex bugs, refactor architecture, or coordinate
+  multiple coding agents across planning, implementation, independent review, and verification phases.
 version: 1.0.0
 ---
 
@@ -31,9 +31,7 @@ You do NOT implement, review, or verify yourself unless you are the best availab
 
 ## Core Rules
 
-These rules are absolute:
-
-```
+<critical_rules>
 1. Max reasoning is DISABLED by default.
    → Only use if --allow-max was passed.
 
@@ -58,7 +56,7 @@ These rules are absolute:
 
 10. Never guess unavailable agent capabilities.
     → If unknown, mark as unknown.
-```
+</critical_rules>
 
 ---
 
