@@ -333,17 +333,17 @@ Evidence is stored in run metadata and `verification-evidence.json`:
 
 Adaptive Director can discover these host CLIs when installed:
 
-| Host | Binary |
-| --- | --- |
-| Claude Code | `claude` |
-| Codex | `codex` |
-| AGY / Antigravity | `agy` |
-| Gemini | `gemini` |
-| OpenCode | `opencode` |
-| Aider | `aider` |
-| Cursor Agent | `cursor-agent` |
-| Cline | `cline` |
-| GitHub Copilot CLI | `copilot` |
+| Host | Binary | Notes |
+| --- | --- | --- |
+| Claude Code | `claude` | Claude's coding CLI. |
+| Codex | `codex` | OpenAI Codex CLI. |
+| Antigravity / AGY | `agy` | Google Antigravity CLI. It may expose Gemini and other models through AGY. |
+| Gemini CLI | `gemini` | Separate Gemini CLI, detected only if installed independently. |
+| OpenCode | `opencode` | OpenCode CLI. |
+| Aider | `aider` | Aider CLI. |
+| Cursor Agent | `cursor-agent` | Cursor's headless agent CLI. |
+| Cline | `cline` | Cline CLI. |
+| GitHub Copilot CLI | `copilot` | GitHub Copilot CLI. |
 
 Delegate relays can add more implementers through `delegate-skills`.
 
