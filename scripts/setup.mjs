@@ -1,123 +1,149 @@
 #!/usr/bin/env node
-/**
- * setup.mjs
- * ──────────
- * Interactive setup: discovers environment, shows summary, saves config.
- *
- * Usage:
- *   node scripts/setup.mjs
- *   node scripts/setup.mjs --yes   (non-interactive, accept defaults)
- */
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { createInterface } from 'node:readline';
 
-import { execFileSync } from 'node:child_process'
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { createInterface } from 'node:readline'
-
-const CONFIG_DIR  = join(homedir(), '.adaptive-director')
-const CONFIG_PATH = join(CONFIG_DIR, 'config.yaml')
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const CONFIG_DIR  = join(homedir(), '.adaptive-director');
+const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
 function run(script, args = []) {
   try {
     const out = execFileSync(process.execPath, [script, ...args], {
       encoding: 'utf8', timeout: 15000,
       cwd: process.cwd(),
-    })
-    return JSON.parse(out.trim())
+    });
+    return JSON.parse(out.trim());
   } catch (e) {
-    return null
+    return null;
   }
 }
 
 function ask(rl, question) {
-  return new Promise(resolve => rl.question(question, resolve))
+  return new Promise(resolve => rl.question(question, resolve));
 }
 
-function icon(ok) { return ok ? '✓' : '✗' }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
 async function main() {
-  const nonInteractive = process.argv.includes('--yes')
-  const scriptDir = new URL('.', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')
-  const discoverScript = join(scriptDir, 'discover.mjs')
+  const nonInteractive = process.argv.includes('--yes');
+  const scriptDir = new URL('.', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+  const discoverScript = join(scriptDir, 'discover.mjs');
+  const installScript = join(scriptDir, 'install.mjs');
 
-  console.log('\n  Adaptive Director — Setup\n')
-  console.log('  Discovering environment...\n')
+  console.log('\n  Adaptive Director — Setup\n');
+  console.log('  Discovering environment...\n');
 
-  // ── 1. Run discovery ──────────────────────────────────────────────────────
-  const discovery = run(discoverScript)
-
+  const discovery = run(discoverScript);
   if (!discovery) {
-    console.error('  Error: discovery failed. Make sure Node.js 18+ is available.')
-    process.exit(1)
+    console.error('  Error: discovery failed.');
+    process.exit(1);
   }
 
-  // ── 2. Print agents ───────────────────────────────────────────────────────
-  console.log('  Agents:')
+  const hostsWithSkillDir = [];
+  console.log('  Detected hosts:');
+  
+  let anyInstalled = false;
   for (const [id, info] of Object.entries(discovery.agents ?? {})) {
-    const mark = info.available ? '✓' : info.installed ? '~' : '✗'
-    const note = info.available ? (info.version ?? 'available')
-               : info.installed ? 'installed (auth unknown)'
-               : 'not installed'
-    console.log(`    ${mark} ${id.padEnd(14)} ${note}`)
+    if (!info.installed) continue;
+    anyInstalled = true;
+    const mark = '✓';
+    console.log(`\n  ${mark} ${id}`);
+    if (info.skillPath) {
+      console.log(`    Skill directory: ${info.skillPath}`);
+      hostsWithSkillDir.push({ id, path: info.skillPath });
+    } else {
+      console.log(`    Skill directory could not be resolved. Skipping automatic installation.`);
+    }
   }
 
-  // ── 3. Delegate fleet ────────────────────────────────────────────────────
-  console.log('')
-  const ds = discovery.delegateSkills ?? { installed: false, lanes: {} }
-  if (ds.installed) {
-    const laneNames = Object.keys(ds.lanes ?? {})
-    console.log(`  ✓ delegate-skills fleet detected (${laneNames.length} lane(s))`)
-    for (const [name, lane] of Object.entries(ds.lanes ?? {})) {
-      console.log(`    ${name} → ${lane.implementer ?? lane.agent ?? '?'}${lane.model ? ' / ' + lane.model : ''}`)
+  if (!anyInstalled) {
+      console.log('  None');
+  }
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  if (hostsWithSkillDir.length > 0) {
+    console.log('\n  Install Adaptive Director into:');
+    for (const h of hostsWithSkillDir) {
+      console.log(`  [x] ${h.id}`);
+    }
+    
+    if (!nonInteractive) {
+      const ans = await ask(rl, '\n  Continue? [Y/n] ');
+      if (ans.trim().toLowerCase() !== 'n') {
+        const paths = hostsWithSkillDir.map(h => h.path);
+        try {
+          execFileSync(process.execPath, [installScript, ...paths], { stdio: 'inherit' });
+        } catch(e) {
+          console.error("  Installation failed");
+        }
+      } else {
+        console.log('  Skipping installation.');
+      }
+    } else {
+        const paths = hostsWithSkillDir.map(h => h.path);
+        try {
+          execFileSync(process.execPath, [installScript, ...paths], { stdio: 'inherit' });
+        } catch(e) {
+          console.error("  Installation failed");
+        }
     }
   } else {
-    console.log('  ✗ delegate-skills fleet not detected')
+    console.log('\n  No known host skill directories found. Skipping automatic installation.');
+  }
+
+  console.log('');
+  const ds = discovery.delegateSkills ?? { installed: false, lanes: {} };
+  if (ds.installed) {
+    console.log(`  ✓ delegate-skills fleet detected (${Object.keys(ds.lanes ?? {}).length} lane(s))`);
+  } else {
+    console.log('  delegate-skills not found.');
+    console.log('\n  Adaptive Director works without it.');
     if (!nonInteractive) {
-      const rl = createInterface({ input: process.stdin, output: process.stdout })
-      const ans = await ask(rl, '\n  Install delegate-skills now? [y/N] ')
-      rl.close()
+      const ans = await ask(rl, '\n  Install delegate support now? [y/N] ');
       if (ans.trim().toLowerCase() === 'y') {
-        console.log('\n  Run:  npx skills add amElnagdy/delegate-skills')
-        console.log('  Then: node scripts/setup.mjs\n')
-        process.exit(0)
+        console.log('\n  Run:  npx skills add amElnagdy/delegate-skills');
+        console.log('  Then re-run setup.\n');
+        process.exit(0);
       }
     }
   }
+  rl.close();
 
-  // ── 4. Write config ───────────────────────────────────────────────────────
-  mkdirSync(CONFIG_DIR, { recursive: true })
+  // Create JSON config
+  mkdirSync(CONFIG_DIR, { recursive: true });
+  let existingConfig = {};
+  if (existsSync(CONFIG_PATH)) {
+    try {
+      existingConfig = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
+    } catch {}
+  }
+  
+  const config = {
+    version: 1,
+    defaultBudget: existingConfig.defaultBudget || 'balanced',
+    allowMax: existingConfig.allowMax || false,
+    delegateEnabled: existingConfig.delegateEnabled || false,
+    hosts: {},
+    overrides: existingConfig.overrides || {}
+  };
 
-  const config = [
-    '# Adaptive Orchestrator config',
-    '# Generated by setup.mjs',
-    '',
-    'defaultBudget: balanced',
-    '',
-    '# Agent overrides (uncomment and edit to override routing):',
-    '# agentOverrides.plan: claude',
-    '# agentOverrides.implement: codex',
-    '# agentOverrides.review: claude',
-    '# agentOverrides.verify: claude',
-    '',
-  ].join('\n')
+  for (const [id, info] of Object.entries(discovery.agents ?? {})) {
+    if (info.installed) {
+      config.hosts[id] = {
+        enabled: true,
+        skillPath: info.skillPath
+      };
+    }
+  }
 
-  writeFileSync(CONFIG_PATH, config, 'utf8')
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
 
-  console.log('\n  Default policies:')
-  console.log('    Budget:    balanced')
-  console.log('    Delegate:  disabled (use --delegate at runtime)')
-  console.log('    Max:       disabled (use --allow-max at runtime)')
-  console.log('')
-  console.log(`  Setup complete. Config: ${CONFIG_PATH}`)
-  console.log('')
+  console.log('\n  Config written to:', CONFIG_PATH);
+  console.log('  Setup complete. Run "adaptive-director doctor" to verify.\n');
 }
 
 main().catch(err => {
-  console.error('Setup error:', err.message)
-  process.exit(1)
-})
+  console.error('Setup error:', err.message);
+  process.exit(1);
+});

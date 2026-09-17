@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/adaptive-director-skill.svg)](https://www.npmjs.com/package/adaptive-director-skill)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#architecture)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-0%20(pure%20built--ins)-blue.svg)](#core-principles)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **One task in. The right agents take it from there.**
@@ -59,31 +59,59 @@ flowchart LR
 
 Adaptive Director runs with **zero external npm dependencies** (pure Node.js built-ins).
 
-### 1. Install & Setup
+### 1. Install Globally
 
-Via npm:
 ```bash
-npm install adaptive-director-skill
+npm install -g adaptive-director-skill
 ```
 
-Or clone directly:
+### 2. Set Up
+
+> `adaptive-director setup` registers the Skill with your coding-agent hosts, discovers available agents, detects optional delegate-skills integration, and creates the local Adaptive Director configuration.
+
 ```bash
-git clone https://github.com/tamourax/Adaptive-Orchestrator.git
-cd Adaptive-Orchestrator
+adaptive-director setup
 ```
 
-Initialize local configuration and run verification:
+Or without a global install:
+
 ```bash
-node scripts/setup.mjs
-node scripts/smoke-test.mjs
+npx adaptive-director-skill setup
 ```
 
-### 2. Run with Your AI Agent
+### 3. Verify
 
-Load `SKILL.md` into your coding agent (Claude Code, Antigravity, Codex, etc.) and prompt:
+```bash
+adaptive-director doctor
+```
+
+Expected output:
+```
+✓ Package installed
+✓ Skill source exists
+✓ SKILL.md exists
+✓ references/ exists
+✓ templates/ exists
+✓ examples/ exists
+✓ Registry exists
+✓ Registry valid
+✓ Config exists
+✓ Config valid
+✓ Routing script works
+✓ Run state script exists
+✓ Resume script exists
+✓ codex detected
+✓ Skill installed for codex
+
+Ready.
+```
+
+### 4. Run with Your AI Agent
+
+The Skill is now installed in your agent's skills directory. Prompt your agent:
 
 ```text
-Use $adaptive-director-skill to implement Stripe checkout in Flutter
+Use $adaptive-director to implement Stripe checkout in Flutter
 ```
 
 ---
@@ -103,33 +131,50 @@ Use $adaptive-director-skill to implement Stripe checkout in Flutter
 
 ---
 
-## Architecture
+## Repository Architecture
 
-> *"Reasoning stays with agents. Deterministic operations stay in scripts."*
+The repository separates the **npm management/installer layer** from the **self-contained Agent Skill**:
+
+- **Repository Root:** npm distribution, CLI tools, setup, host discovery, and health diagnostics (`scripts/`).
+- **`skills/adaptive-director/`:** The canonical, portable Agent Skill (procedural brain, runtime scripts, templates, references, and registry data).
 
 ```text
-adaptive-director/
-├── SKILL.md                 # The brain: instructions read by your AI agent
-├── data/registry.json       # Baseline model capability scores (1–5)
-├── references/              # Handoff schemas, rules, and delegate docs
-└── scripts/                 # Deterministic Node.js helpers (pure built-ins)
-    ├── discover.mjs         # Detects local agent CLIs
-    ├── route.mjs            # Computes agent + effort assignments
-    ├── run-state.mjs        # Manages isolated phase briefs & workspaces
-    └── resume.mjs           # Recovers interrupted runs
+Adaptive-Director-Skill/
+├── scripts/                      # Management & CLI layer
+│   ├── cli.mjs                   # Main CLI router
+│   ├── setup.mjs                 # Interactive host setup
+│   ├── install.mjs               # Idempotent skill copier
+│   ├── refresh.mjs               # Safe config refresher
+│   ├── discover.mjs              # Local agent discovery
+│   ├── doctor.mjs                # Installation diagnostics
+│   └── smoke-test.mjs            # Automated test suite
+│
+└── skills/adaptive-director/     # Portable Agent Skill (the brain)
+    ├── SKILL.md                  # Procedural runbook
+    ├── scripts/                  # Runtime scripts (route, run-state, resume)
+    ├── references/               # Deep documentation & schemas
+    ├── templates/                # Standardized phase brief templates
+    ├── examples/                 # Realistic execution walkthroughs
+    └── data/                     # Capability registry
 ```
 
-### Routing Priority Order
+---
 
-1. **User Overrides:** Explicit settings in `~/.adaptive-director/config.yaml`
-2. **Delegate Lanes:** Optional `delegate-skills` fleet lanes (when `--delegate` is active)
-3. **Capability Registry:** Best available local model meeting phase requirements
-4. **Fallback:** Default host agent
+## CLI Commands
+
+```bash
+adaptive-director setup     # Interactive: discover hosts, install Skill, create config
+adaptive-director install   # Re-install/update Skill in host directories
+adaptive-director refresh   # Re-discover hosts & update config (preserves overrides)
+adaptive-director doctor    # Validate installation and health
+adaptive-director help      # Show usage
+```
 
 ---
 
 ## Core Principles
 
+- **Routing Priority:** User overrides → Delegate fleet lanes → Capability registry → Default fallback.
 - **Independent Review:** The coder never reviews its own work.
 - **Max Reasoning Opt-in:** `max` effort is locked by default; requires `--allow-max`.
 - **Runaway Loop Protection:** Maximum 1 automated fix cycle before alerting the user.
@@ -138,16 +183,40 @@ adaptive-director/
 
 ---
 
-## Configuration (`~/.adaptive-director/config.yaml`)
+## Configuration (`~/.adaptive-director/config.json`)
 
-```yaml
-defaultBudget: balanced # conservative | balanced | quality
-
-# Optional overrides:
-agentOverrides.plan: claude
-agentOverrides.implement: codex
-agentOverrides.review: claude
+```json
+{
+  "version": 1,
+  "defaultBudget": "balanced",
+  "overrides": {
+    "plan": "claude",
+    "implement": "codex"
+  }
+}
 ```
+
+---
+
+## Upgrading
+
+After a package upgrade, re-install the Skill into your host environments:
+
+```bash
+npm install -g adaptive-director-skill@latest
+adaptive-director install
+adaptive-director doctor
+```
+
+---
+
+## Uninstalling
+
+```bash
+npm uninstall -g adaptive-director-skill
+```
+
+> **Note:** npm uninstall removes the package, but does **not** remove Skill copies that were installed into your coding-agent host directories. To clean those up, manually delete the `Adaptive-Director/` folder from each host skill directory (e.g. `~/.codex/skills/Adaptive-Director/`).
 
 ---
 

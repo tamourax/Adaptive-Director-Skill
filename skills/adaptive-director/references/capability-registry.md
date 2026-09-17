@@ -23,8 +23,11 @@ Location: `data/registry.json`
 ```json
 {
   "models": {
-    "claude-sonnet-4-5": { "planning": 4, "coding": 4, "review": 4 },
-    "codex-default":     { "planning": 2, "coding": 5, "review": 2 },
+    "gpt-6-astra":       { "planning": 5, "coding": 5, "review": 5 },
+    "gpt-5.6-sol":       { "planning": 5, "coding": 5, "review": 5 },
+    "gpt-5.5":           { "planning": 5, "coding": 5, "review": 4 },
+    "claude-3-7-sonnet": { "planning": 5, "coding": 5, "review": 5 },
+    "o3-mini":           { "planning": 5, "coding": 5, "review": 4 },
     "unknown":           { "planning": 1, "coding": 1, "review": 1 }
   },
   "phase_requirements": {
@@ -56,7 +59,7 @@ Location: `data/registry.json`
 The routing script applies this order:
 
 ```
-1. User explicit override  (config.yaml agentOverrides.*)
+1. User explicit override  (config.json agentOverrides.*)
 2. Delegate lane preference (fleet.yaml, only when --delegate)
 3. Built-in registry        (best available agent by score)
 4. Fallback                 (claude)
@@ -64,16 +67,20 @@ The routing script applies this order:
 
 ---
 
-## User Override (config.yaml)
+## User Override (config.json)
 
-```yaml
-agentOverrides.plan:      claude
-agentOverrides.implement: codex
-agentOverrides.review:    claude
-agentOverrides.verify:    claude
+```json
+{
+  "overrides": {
+    "plan": "claude",
+    "implement": "codex",
+    "review": "claude",
+    "verify": "claude"
+  }
+}
 ```
 
-Uncomment lines in `~/.adaptive-orchestrator/config.yaml` to activate.
+Edit `~/.adaptive-director/config.json` to activate.
 
 ---
 

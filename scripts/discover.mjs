@@ -20,15 +20,15 @@ import { homedir } from 'node:os'
 // ─── Known agents ─────────────────────────────────────────────────────────────
 
 const KNOWN_AGENTS = [
-  { id: 'claude',    bins: ['claude'],       versionArgs: ['--version'] },
-  { id: 'codex',     bins: ['codex'],        versionArgs: ['--version'] },
-  { id: 'agy',       bins: ['agy'],          versionArgs: ['--version'] },
-  { id: 'gemini',    bins: ['gemini'],       versionArgs: ['--version'] },
-  { id: 'opencode',  bins: ['opencode'],     versionArgs: ['--version'] },
-  { id: 'aider',     bins: ['aider'],        versionArgs: ['--version'] },
-  { id: 'cursor',    bins: ['cursor-agent'], versionArgs: ['--version'] },
-  { id: 'cline',     bins: ['cline'],        versionArgs: ['--version'] },
-  { id: 'copilot',   bins: ['copilot'],      versionArgs: ['--version'] },
+  { id: 'claude',    bins: ['claude'],       versionArgs: ['--version'], skillPaths: ['.claude/skills', '.config/claude/skills'] },
+  { id: 'codex',     bins: ['codex'],        versionArgs: ['--version'], skillPaths: ['.codex/skills'] },
+  { id: 'agy',       bins: ['agy'],          versionArgs: ['--version'], skillPaths: ['.gemini/antigravity/builtin/skills', '.gemini/antigravity/skills', '.gemini/antigravity-ide/skills'] },
+  { id: 'gemini',    bins: ['gemini'],       versionArgs: ['--version'], skillPaths: ['.gemini/skills'] },
+  { id: 'opencode',  bins: ['opencode'],     versionArgs: ['--version'], skillPaths: ['.opencode/skills'] },
+  { id: 'aider',     bins: ['aider'],        versionArgs: ['--version'], skillPaths: ['.aider/skills'] },
+  { id: 'cursor',    bins: ['cursor-agent'], versionArgs: ['--version'], skillPaths: ['.cursor/skills'] },
+  { id: 'cline',     bins: ['cline'],        versionArgs: ['--version'], skillPaths: ['.cline/skills'] },
+  { id: 'copilot',   bins: ['copilot'],      versionArgs: ['--version'], skillPaths: ['.copilot/skills'] },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -116,10 +116,23 @@ function discover() {
     }
 
     const version = getVersion(bin, desc.versionArgs)
+    let detectedSkillPath = null
+    if (desc.skillPaths) {
+      for (const sp of desc.skillPaths) {
+        const fullPath = join(homedir(), sp)
+        if (existsSync(fullPath)) {
+          detectedSkillPath = fullPath
+          break
+        }
+      }
+    }
+
     agents[desc.id] = {
       installed:  true,
       available:  version !== null,
       version:    version ?? 'unknown',
+      skillPath:  detectedSkillPath,
+      hasSkill:   detectedSkillPath ? existsSync(join(detectedSkillPath, 'adaptive-director')) || existsSync(join(detectedSkillPath, 'Adaptive-Director')) || existsSync(join(detectedSkillPath, 'adaptive-director-skill')) : false
     }
   }
 

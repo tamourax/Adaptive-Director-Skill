@@ -1,10 +1,10 @@
 ---
-name: adaptive-director-skill
-description: >
-  Adaptive multi-agent director for coding tasks.
-  Routes every phase (plan, implement, review, fix, verify) to the right
-  agent, model, and reasoning effort automatically.
-version: 0.1.1
+name: adaptive-director
+description: >-
+  Adaptive multi-agent director for coding tasks. Use this skill whenever the user
+  asks to implement features, fix complex bugs, refactor architecture, or coordinate
+  multiple coding agents across planning, implementation, independent review, and verification phases.
+version: 1.0.0
 ---
 
 # Adaptive Director Skill
@@ -31,9 +31,7 @@ You do NOT implement, review, or verify yourself unless you are the best availab
 
 ## Core Rules
 
-These rules are absolute:
-
-```
+<critical_rules>
 1. Max reasoning is DISABLED by default.
    → Only use if --allow-max was passed.
 
@@ -58,7 +56,7 @@ These rules are absolute:
 
 10. Never guess unavailable agent capabilities.
     → If unknown, mark as unknown.
-```
+</critical_rules>
 
 ---
 
@@ -163,8 +161,10 @@ node scripts/run-state.mjs build-brief \
   --phase plan
 ```
 
-The brief is a self-contained prompt. Pass it to the assigned agent.
+The brief is a self-contained prompt generated from standardized templates in `templates/` (`plan-brief.md`, `implement-brief.md`, `review-brief.md`, `fix-brief.md`, `verify-brief.md`).
+Pass it to the assigned agent.
 **Do not share full chat history with the agent — use the brief only.**
+See `examples/clean-run-walkthrough.md` and `examples/critical-fix-cycle-walkthrough.md` for complete reference runs.
 
 ### 3. Execute the phase
 

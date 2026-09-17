@@ -29,12 +29,16 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
-const REGISTRY_PATH = join(import.meta.dirname ?? '.', '../data/registry.json')
+const REGISTRY_PATH = resolve(__dirname, '../data/registry.json')
 
 function loadRegistry() {
   if (!existsSync(REGISTRY_PATH)) {
@@ -45,21 +49,20 @@ function loadRegistry() {
 
 // ─── User config ──────────────────────────────────────────────────────────────
 
-const USER_CONFIG_PATH = existsSync(join(homedir(), '.adaptive-director', 'config.yaml'))
-  ? join(homedir(), '.adaptive-director', 'config.yaml')
-  : join(homedir(), '.adaptive-orchestrator', 'config.yaml')
+const USER_CONFIG_PATH = existsSync(join(homedir(), '.adaptive-director', 'config.json'))
+  ? join(homedir(), '.adaptive-director', 'config.json')
+  : join(homedir(), '.adaptive-orchestrator', 'config.json')
 
 function loadUserConfig() {
   if (!existsSync(USER_CONFIG_PATH)) return {}
-  // Simple YAML parser (key: value only, no nesting needed here)
-  const raw = readFileSync(USER_CONFIG_PATH, 'utf8')
-  const config = {}
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^(\w[\w.]*?):\s*(.+)$/)
-    if (m) config[m[1].trim()] = m[2].trim()
+  try {
+    const raw = readFileSync(USER_CONFIG_PATH, 'utf8')
+    return JSON.parse(raw)
+  } catch {
+    return {}
   }
-  return config
 }
+
 
 // ─── Delegate fleet ───────────────────────────────────────────────────────────
 
@@ -94,9 +97,15 @@ function loadDelegateLanes() {
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 function modelScore(registry, modelId) {
+  if (!modelId) return registry.models['unknown'] ?? { planning: 1, coding: 1, review: 1 }
+  const lower = modelId.toLowerCase()
+  const withHyphen = lower.replace(/\./g, '-')
+  const withDot = lower.replace(/-/g, '.')
   return (
     registry.models[modelId] ??
-    registry.models[modelId?.toLowerCase()] ??
+    registry.models[lower] ??
+    registry.models[withHyphen] ??
+    registry.models[withDot] ??
     registry.models['unknown'] ??
     { planning: 1, coding: 1, review: 1 }
   )
@@ -121,14 +130,14 @@ function phaseScore(registry, modelId, phase) {
 // ─── Agent → representative model mapping ─────────────────────────────────────
 
 const AGENT_MODEL_MAP = {
-  claude:   'claude-sonnet-4-5',
-  agy:      'claude-sonnet-4-5',
-  codex:    'codex-default',
+  claude:   'claude-3-7-sonnet',
+  agy:      'claude-3-7-sonnet',
+  codex:    'gpt-5.6-sol',
   gemini:   'gemini-2-5-pro',
-  opencode: 'gpt-4o',
-  aider:    'gpt-4o',
-  cursor:   'claude-sonnet-4-5',
-  cline:    'claude-sonnet-4-5',
+  opencode: 'o3-mini',
+  aider:    'deepseek-r1',
+  cursor:   'claude-3-7-sonnet',
+  cline:    'claude-3-7-sonnet',
   copilot:  'gpt-4o',
 }
 
@@ -154,7 +163,7 @@ function route(input) {
 
   // ── 1. User explicit override ────────────────────────────────────────────
   const overrideKey = `agentOverrides.${phase}`
-  const explicitAgent = userConfig[overrideKey] ?? userConfig[`override_${phase}`]
+  const explicitAgent = userConfig?.overrides?.[phase] ?? userConfig[overrideKey] ?? userConfig[`override_${phase}`]
   if (explicitAgent) {
     const effort = computeEffort(registry, budget, phase, allowMax)
     return { agent: explicitAgent, model: null, effort, execution: 'native' }

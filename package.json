@@ -1,26 +1,28 @@
 {
   "name": "adaptive-director-skill",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "Adaptive Director Skill — Skill-first adaptive multi-agent orchestration for AI coding agents",
   "type": "module",
+  "bin": {
+    "adaptive-director": "scripts/cli.mjs"
+  },
   "license": "MIT",
   "author": "Ahmed Tamer",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tamourax/Adaptive-Orchestrator.git"
+    "url": "git+https://github.com/tamourax/Adaptive-Director-Skill.git"
   },
   "files": [
-    "SKILL.md",
     "README.md",
     "LICENSE",
     "scripts/",
-    "references/",
-    "data/"
+    "skills/"
   ],
   "scripts": {
     "test": "node scripts/smoke-test.mjs",
     "setup": "node scripts/setup.mjs",
-    "discover": "node scripts/discover.mjs"
+    "discover": "node scripts/discover.mjs",
+    "doctor": "node scripts/doctor.mjs"
   },
   "keywords": [
     "ai",
