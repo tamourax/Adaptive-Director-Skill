@@ -60,7 +60,18 @@ function getVersion(bin, args) {
     })
     return out.trim().split('\n')[0].trim()
   } catch {
-    return null
+    if (process.platform !== 'win32') return null
+    try {
+      const quotedBin = `"${bin.replace(/"/g, '""')}"`
+      const quotedArgs = args.map(a => `"${String(a).replace(/"/g, '""')}"`).join(' ')
+      const out = execSync(`${quotedBin} ${quotedArgs}`, {
+        encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+      })
+      return out.trim().split('\n')[0].trim()
+    } catch {
+      return null
+    }
   }
 }
 

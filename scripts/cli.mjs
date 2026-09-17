@@ -20,7 +20,7 @@ const commands = {
 };
 
 if (command === 'help' || command === '--help' || command === '-h') {
-  console.log(`Adaptive Director Skill CLI v1.1.1
+  console.log(`Adaptive Director Skill CLI v1.1.2
 
 Usage:
   adaptive-director <command> [options]
