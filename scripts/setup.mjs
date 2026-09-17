@@ -303,8 +303,46 @@ async function main() {
 
   writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
 
-  console.log('  Config written to:', configPath);
-  console.log('  Setup complete. Run "adaptive-director doctor" to verify.\n');
+  let doctorReady = false;
+  try {
+    const doctorOut = execFileSync(process.execPath, [join(scriptDir, 'doctor.mjs')], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    doctorReady = doctorOut.includes('Ready.');
+  } catch {}
+
+  console.log('Adaptive Director is ready.\n');
+
+  console.log('Installed hosts:');
+  const installedHosts = Object.keys(config.hosts);
+  if (installedHosts.length > 0) {
+    for (const host of installedHosts) console.log(`✓ ${host}`);
+  } else {
+    console.log('! None detected');
+  }
+
+  console.log('\nDelegate integration:');
+  if (delegateStatus.installed) {
+    const relays = initialDelegate.relays ?? initialDelegate.skills ?? [];
+    console.log('✓ Installed');
+    console.log(`✓ ${relays.length} execution lane(s) detected`);
+  } else {
+    console.log('! Not installed (optional)');
+    console.log('Native execution remains available.');
+  }
+
+  console.log('\nConfiguration:');
+  console.log('✓ Created');
+  console.log(`  ${configPath}`);
+
+  console.log('\nHealth check:');
+  console.log(doctorReady ? '✓ Ready' : '! Run adaptive-director doctor for details');
+
+  console.log('\nTry:');
+  console.log('  adaptive-director run "Add input validation to the login flow"\n');
 }
 
 main().catch(err => {

@@ -59,27 +59,30 @@ flowchart LR
 
 Adaptive Director runs with **zero external npm dependencies** (pure Node.js built-ins).
 
-### 1. Install Globally
-
-```bash
-npm install -g adaptive-director-skill
-```
-
-### 2. Set Up
-
-> `adaptive-director setup` registers the Skill with your coding-agent hosts, discovers available agents, detects optional delegate-skills integration, and creates the local Adaptive Director configuration.
-
-```bash
-adaptive-director setup
-```
-
-Or without a global install:
+### 1. Set Up
 
 ```bash
 npx adaptive-director-skill setup
 ```
 
-### 3. Verify
+This downloads the package, detects supported coding-agent hosts, installs the Skill, creates local config, checks optional delegate-skills integration, and runs health validation.
+
+For a global installation:
+
+```bash
+npm install -g adaptive-director-skill
+adaptive-director setup
+```
+
+### 2. Run a Task
+
+```bash
+adaptive-director run "Add refresh-token authentication"
+```
+
+The `run` command creates a run workspace, classifies the task, routes every phase, persists routing decisions, dispatches execution, handles critical-only fix/re-review, records verification evidence, and finishes with a terminal status.
+
+### 3. Verify Installation
 
 ```bash
 adaptive-director doctor
@@ -106,9 +109,9 @@ Expected output:
 Ready.
 ```
 
-### 4. Run with Your AI Agent
+### 4. Skill Prompt Usage
 
-The Skill is now installed in your agent's skills directory. Prompt your agent:
+The Skill is also installed in your agent's skills directory. You can still prompt your agent directly:
 
 ```text
 Use $adaptive-director to implement Stripe checkout in Flutter
@@ -164,6 +167,7 @@ Adaptive-Director-Skill/
 ## CLI Commands
 
 ```bash
+adaptive-director run "Add input validation to the login flow"
 adaptive-director setup               # Interactive: discover hosts, install Skill, configure delegate
 adaptive-director setup --with-delegate # Setup and automatically install delegate-skills
 adaptive-director setup --no-delegate   # Setup skipping delegate-skills (native execution)

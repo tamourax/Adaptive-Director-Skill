@@ -62,6 +62,16 @@ You do NOT implement, review, or verify yourself unless you are the best availab
 
 ## How to Start a Run
 
+### Fast path
+
+For normal user-facing orchestration, prefer the CLI entry point:
+
+```bash
+adaptive-director run "Implement Stripe in Flutter"
+```
+
+The run command creates the run workspace, persists routing decisions, dispatches phases, records verification evidence, handles the one-cycle critical fix loop, and writes a terminal status.
+
 ### Step 1: Read user input
 
 Extract:
@@ -186,6 +196,8 @@ node scripts/run-state.mjs write-phase \
   --status completed \
   --summary "<agent output>"
 ```
+
+The canonical implementation report filename is `implement.md`. Older runs that contain `implementation.md` may be read as a compatibility fallback, but new runs write `implement.md`.
 
 If the phase is `review` or `fix`, also parse findings and include:
 ```bash
@@ -393,8 +405,10 @@ The routing engine already handles this — it will NOT select a weak model for 
 |--------|---------|
 | `scripts/discover.mjs` | Detect installed agents and delegate fleet |
 | `scripts/setup.mjs` | Interactive setup + config write |
+| `scripts/run.mjs` | User-facing end-to-end workflow runner |
+| `scripts/verify-evidence.mjs` | Deterministic verification evidence runner |
 | `scripts/route.mjs` | Deterministic routing (stdin JSON → stdout JSON) |
-| `scripts/run-state.mjs` | Run workspace: init, update, read, write, brief |
+| `scripts/run-state.mjs` | Run workspace: init, update, routing, evidence, read, write, brief |
 | `scripts/resume.mjs` | Find and return interrupted run |
 
 | Reference | Content |

@@ -109,6 +109,19 @@ const brief = execFileSync(process.execPath, [join(skillDir, 'scripts/run-state.
 console.log('\nbuild-brief review (first 80 chars):', brief.slice(0, 80).replace(/\n/g, ' '))
 console.assert(brief.includes('Independent Reviewer'), 'brief should contain reviewer role')
 
+// Test 8B: implement.md is the canonical implementation report used by review briefs
+runStateCmd('write-phase', [
+  '--run-id', runId, '--phase', 'implement',
+  '--status', 'completed', '--summary', 'IMPLEMENT REPORT SENTINEL'
+])
+const reviewBriefWithImplementation = execFileSync(process.execPath, [
+  join(skillDir, 'scripts/run-state.mjs'), 'build-brief',
+  '--run-id', runId, '--phase', 'review'
+], { encoding: 'utf8', timeout: 10000, cwd: scriptDir })
+console.assert(reviewBriefWithImplementation.includes('IMPLEMENT REPORT SENTINEL'), 'review brief must include implement.md report')
+console.assert(!reviewBriefWithImplementation.includes('(no implementation report)'), 'review brief must not report missing implementation after implement phase')
+console.log('implement report canonical filename regression: OK')
+
 // Test 9: resume (should find our running run)
 const resumeOut = execFileSync(process.execPath, [join(skillDir, 'scripts/resume.mjs')], {
   encoding: 'utf8', timeout: 10000, cwd: scriptDir

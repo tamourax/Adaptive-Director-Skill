@@ -12,6 +12,9 @@
  *   node scripts/run-state.mjs write-phase --run-id <id> --phase <p> --status <s> --summary <str> [--findings-json <json>]
  *   node scripts/run-state.mjs read-phase  --run-id <id> --phase <p>
  *   node scripts/run-state.mjs build-brief --run-id <id> --phase <p>
+ *   node scripts/run-state.mjs add-route   --run-id <id> --phase <p> --route-json <json>
+ *   node scripts/run-state.mjs write-evidence --run-id <id> --evidence-json <json>
+ *   node scripts/run-state.mjs set-final-status --run-id <id> --status <completed|blocked|needs_recovery|failed>
  *   node scripts/run-state.mjs list
  */
 
@@ -32,6 +35,8 @@ function runDir(runId) { return join(RUNS_ROOT, runId) }
 function metaPath(runId) { return join(runDir(runId), 'metadata.json') }
 function phaseMdPath(runId, phase) { return join(runDir(runId), `${phase}.md`) }
 function phaseJsonPath(runId, phase) { return join(runDir(runId), `${phase}.json`) }
+function implementReportPath(runId) { return phaseMdPath(runId, 'implement') }
+function legacyImplementationReportPath(runId) { return join(runDir(runId), 'implementation.md') }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +63,8 @@ function cmdInit(args) {
     allowMax: false,
     useDelegate: false,
     routing: [],
+    evidence: null,
+    finalStatus: null,
     startedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
@@ -186,6 +193,74 @@ function cmdReadPhase(args) {
   out(JSON.parse(readFileSync(path, 'utf8')))
 }
 
+function cmdAddRoute(args) {
+  const runId = requireArg(args, '--run-id')
+  const phase = requireArg(args, '--phase')
+  const routeRaw = requireArg(args, '--route-json')
+  const meta = readMeta(runId)
+
+  let route = {}
+  try {
+    route = JSON.parse(routeRaw)
+  } catch {
+    process.stderr.write('Invalid --route-json\n')
+    process.exit(2)
+  }
+
+  const record = {
+    phase,
+    ...route,
+    timestamp: route.timestamp ?? new Date().toISOString(),
+  }
+
+  meta.routing = Array.isArray(meta.routing) ? meta.routing : []
+  meta.routing.push(record)
+  meta.updatedAt = new Date().toISOString()
+  writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2), 'utf8')
+  out({ ok: true, runId, route: record, routingCount: meta.routing.length })
+}
+
+function cmdWriteEvidence(args) {
+  const runId = requireArg(args, '--run-id')
+  const evidenceRaw = requireArg(args, '--evidence-json')
+  const meta = readMeta(runId)
+
+  let evidence = {}
+  try {
+    evidence = JSON.parse(evidenceRaw)
+  } catch {
+    process.stderr.write('Invalid --evidence-json\n')
+    process.exit(2)
+  }
+
+  meta.evidence = {
+    ...evidence,
+    timestamp: evidence.timestamp ?? new Date().toISOString(),
+  }
+  meta.updatedAt = new Date().toISOString()
+  writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2), 'utf8')
+  writeFileSync(join(runDir(runId), 'verification-evidence.json'), JSON.stringify(meta.evidence, null, 2), 'utf8')
+  out({ ok: true, runId, evidence: meta.evidence })
+}
+
+function cmdSetFinalStatus(args) {
+  const runId = requireArg(args, '--run-id')
+  const status = requireArg(args, '--status')
+  const allowed = new Set(['completed', 'blocked', 'needs_recovery', 'failed'])
+  if (!allowed.has(status)) {
+    process.stderr.write(`Invalid final status: ${status}\n`)
+    process.exit(2)
+  }
+  const meta = readMeta(runId)
+  meta.status = status
+  meta.finalStatus = status
+  meta.currentPhase = null
+  meta.completedAt = new Date().toISOString()
+  meta.updatedAt = meta.completedAt
+  writeFileSync(metaPath(runId), JSON.stringify(meta, null, 2), 'utf8')
+  out({ ok: true, runId, status })
+}
+
 function cmdEvalReview(args) {
   const runId = requireArg(args, '--run-id')
   const path  = phaseJsonPath(runId, 'review')
@@ -219,8 +294,10 @@ function cmdBuildBrief(args) {
   const dir   = runDir(runId)
   const task  = safeRead(join(dir, 'task.md'))
   const plan  = safeRead(join(dir, 'plan.md'))
-  const impl  = safeRead(join(dir, 'implementation.md'))
+  const impl  = safeRead(implementReportPath(runId)) ?? safeRead(legacyImplementationReportPath(runId))
   const rev   = safeRead(join(dir, 'review.md'))
+  const rerev = safeRead(join(dir, 'review-rereview.md'))
+  const evidence = safeRead(join(dir, 'verification-evidence.json'))
 
   let brief = ''
 
@@ -328,6 +405,16 @@ function cmdBuildBrief(args) {
         '',
         '---',
         '',
+        '# Latest Review',
+        rerev ?? rev ?? '(no review)',
+        '',
+        '---',
+        '',
+        '# Deterministic Verification Evidence',
+        evidence ?? '(no deterministic evidence recorded yet)',
+        '',
+        '---',
+        '',
         '# Your Role: Verifier',
         '',
         'Verify the implementation:',
@@ -415,12 +502,15 @@ try {
     case 'read':        cmdRead(args);        break
     case 'write-phase': cmdWritePhase(args);  break
     case 'read-phase':  cmdReadPhase(args);   break
+    case 'add-route':   cmdAddRoute(args);    break
+    case 'write-evidence': cmdWriteEvidence(args); break
+    case 'set-final-status': cmdSetFinalStatus(args); break
     case 'eval-review': cmdEvalReview(args);  break
     case 'build-brief': cmdBuildBrief(args);  break
     case 'list':        cmdList();            break
     default:
       process.stderr.write(`Unknown command: ${command}\n`)
-      process.stderr.write('Commands: init, update, read, write-phase, read-phase, eval-review, build-brief, list\n')
+      process.stderr.write('Commands: init, update, read, write-phase, read-phase, add-route, write-evidence, set-final-status, eval-review, build-brief, list\n')
       process.exit(2)
   }
 } catch (err) {

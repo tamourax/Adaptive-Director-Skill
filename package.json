@@ -19,7 +19,7 @@
     "skills/"
   ],
   "scripts": {
-    "test": "node scripts/smoke-test.mjs && node scripts/test-setup-delegate.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/test-setup-delegate.mjs && node scripts/test-run-flow.mjs",
     "setup": "node scripts/setup.mjs",
     "discover": "node scripts/discover.mjs",
     "doctor": "node scripts/doctor.mjs"
