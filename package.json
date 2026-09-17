@@ -18,6 +18,8 @@
     "LICENSE",
     "scripts/",
     "references/",
+    "templates/",
+    "examples/",
     "data/"
   ],
   "scripts": {

@@ -25,6 +25,12 @@ function installInto(hostSkillDir) {
   if (existsSync(join(projectRoot, 'references'))) {
     cpSync(join(projectRoot, 'references'), join(dest, 'references'), { recursive: true });
   }
+  if (existsSync(join(projectRoot, 'templates'))) {
+    cpSync(join(projectRoot, 'templates'), join(dest, 'templates'), { recursive: true });
+  }
+  if (existsSync(join(projectRoot, 'examples'))) {
+    cpSync(join(projectRoot, 'examples'), join(dest, 'examples'), { recursive: true });
+  }
   if (existsSync(join(projectRoot, 'data'))) {
     cpSync(join(projectRoot, 'data'), join(dest, 'data'), { recursive: true });
   }

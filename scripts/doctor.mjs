@@ -46,6 +46,8 @@ let allGood = true;
 allGood &= check('Package installed',     existsSync(join(pkgRoot, 'package.json')));
 allGood &= check('SKILL.md exists',       existsSync(join(pkgRoot, 'SKILL.md')));
 allGood &= check('references/ exists',    existsSync(join(pkgRoot, 'references')));
+allGood &= check('templates/ exists',     existsSync(join(pkgRoot, 'templates')));
+allGood &= check('examples/ exists',       existsSync(join(pkgRoot, 'examples')));
 
 // ── Registry ──────────────────────────────────────────────────────────────
 const registryPath = join(pkgRoot, 'data', 'registry.json');
