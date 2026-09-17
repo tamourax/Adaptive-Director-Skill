@@ -9,7 +9,7 @@ Default:                   native execution
 --delegate flag:           delegate execution allowed (not forced)
 ```
 
-Adaptive Orchestrator always remains the top-level controller.
+Adaptive Director always remains the top-level controller.
 `delegate-skills` is the execution channel — never the orchestrator.
 
 ---
@@ -18,38 +18,50 @@ Adaptive Orchestrator always remains the top-level controller.
 
 When `--delegate` is passed:
 
-1. Adaptive Orchestrator reads the `delegate-skills` fleet config
+1. Adaptive Director reads the `delegate-skills` fleet config or discovers installed delegate skills
 2. For each phase, it checks if a matching lane exists
 3. If yes → dispatches the phase brief to that lane's implementer
 4. If no  → falls back to native execution
 
 ```
-Plan     → native claude (no planning lane)
+Plan      → delegate or native (agy/claude)
 Implement → delegate → codex (feature lane matches)
-Review   → native claude (no review lane)
-Verify   → native claude (no verify lane)
+Review    → delegate or native (agy/claude)
+Verify    → delegate or native (agy/gemini)
 ```
 
 ---
 
-## delegate-skills Fleet Config
+## delegate-skills Discovery & Config Locations
 
-Location: `~/.delegate/fleet.yaml` or `./.delegate/fleet.yaml`
+Adaptive Director dynamically searches for `delegate-skills` across multiple standard locations:
 
-Example:
+1. **YAML Fleet Configs:**
+   - `./.delegate/fleet.yaml` (project root)
+   - `~/.delegate/fleet.yaml` (user home)
+
+2. **JSON Fleet Configs:**
+   - `./.delegate/config.json` (project root)
+   - `~/.config/delegate-skills/config.json` (canonical `delegate-setup` location)
+
+3. **Installed Delegate Skills (Auto-Synthesized):**
+   - `~/.agents/skills/` (e.g. `codex-delegate`, `agy-delegate`, `claude-delegate`, tracked via `.skill-lock.json`)
+   - `~/.codex/skills/` (e.g. `delegate-review-loop`)
+
+Example `fleet.yaml`:
 ```yaml
 lanes:
   feature:
     implementer: codex
-    model: o4-mini
+    model: gpt-6-astra
     effort: medium
   tests:
-    implementer: aider
+    implementer: agy
   ui:
     implementer: cursor
 ```
 
-Adaptive Orchestrator reads these lanes during routing and maps them to phases by keyword:
+Adaptive Director reads these lanes during routing and maps them to phases by keyword:
 
 | Phase | Matching Lane Keywords |
 |-------|----------------------|
@@ -70,7 +82,7 @@ npx skills add amElnagdy/delegate-skills
 Or specific skills:
 ```bash
 npx skills add amElnagdy/delegate-skills --skill codex-delegate
-npx skills add amElnagdy/delegate-skills --skill claude-delegate
+npx skills add amElnagdy/delegate-skills --skill agy-delegate
 ```
 
 ---
@@ -80,6 +92,7 @@ npx skills add amElnagdy/delegate-skills --skill claude-delegate
 The routing engine looks for relay scripts at:
 
 ```
+~/.agents/skills/<agent>-delegate/scripts/relay.mjs
 ./.skills/amElnagdy/delegate-skills/skills/<agent>-delegate/scripts/relay.mjs
 ~/.skills/amElnagdy/delegate-skills/skills/<agent>-delegate/scripts/relay.mjs
 ```
@@ -94,10 +107,10 @@ The delegate should receive a focused brief and return a structured result.
 It must NOT start its own orchestration loop.
 
 ```
-Orchestrator → brief → Delegate → result.json → Orchestrator
+Director → brief → Delegate → result.json → Director
 ```
 
-The delegate NEVER commits. Committing belongs to the reviewer (you).
+The delegate NEVER commits. Committing belongs to the user.
 
 ---
 
@@ -105,11 +118,11 @@ The delegate NEVER commits. Committing belongs to the reviewer (you).
 
 ```bash
 # Enable delegate
-adaptive-orchestrator --delegate "Implement Stripe in Flutter"
+adaptive-director --delegate "Implement Stripe in Flutter"
 
 # Delegate + max reasoning
-adaptive-orchestrator --delegate --allow-max "Refactor payment architecture"
+adaptive-director --delegate --allow-max "Refactor payment architecture"
 
 # Dry run (shows routing, no execution)
-adaptive-orchestrator --dry-run --delegate "Implement Stripe in Flutter"
+adaptive-director --dry-run --delegate "Implement Stripe in Flutter"
 ```

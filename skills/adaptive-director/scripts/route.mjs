@@ -194,6 +194,13 @@ const AGENT_PRIORITY_FOR_CODING   = ['codex', 'aider', 'opencode', 'cursor', 'cl
 
 // ─── Main routing logic ───────────────────────────────────────────────────────
 
+function isCandidateIndependent(candidate, implAgent, implModel) {
+  if (!implAgent && !implModel) return true
+  if (implAgent && candidate.agent.toLowerCase() === implAgent.toLowerCase()) return false
+  if (implModel && candidate.model.toLowerCase() === implModel.toLowerCase()) return false
+  return true
+}
+
 function route(input) {
   const {
     taskSize        = 'medium',
@@ -202,6 +209,7 @@ function route(input) {
     allowMax        = false,
     delegateEnabled = false,
     currentModel    = 'unknown',
+    currentAgent    = null,
   } = input
 
   const registry   = loadRegistry()
@@ -237,6 +245,12 @@ function route(input) {
     : AGENT_PRIORITY_FOR_CODING
 
   const installedAgents = discoverAllInstalledAgents(userConfig)
+
+  // Identify implementer identity for independent review enforcement
+  const rawCurrent = currentModel && currentModel !== 'unknown' ? currentModel.toLowerCase() : null
+  const KNOWN_AGENTS = ['agy', 'codex', 'claude', 'gemini', 'opencode', 'aider', 'cursor', 'cline', 'copilot']
+  const implAgent = (currentAgent ?? (rawCurrent && KNOWN_AGENTS.includes(rawCurrent) ? rawCurrent : null))?.toLowerCase()
+  const implModel = rawCurrent ? resolveModelAlias(registry, rawCurrent).toLowerCase() : null
 
   // Collect candidate options from installed agents
   const eligibleCandidates = []
@@ -274,10 +288,21 @@ function route(input) {
 
   // If eligible candidates were found among installed agents:
   if (eligibleCandidates.length > 0) {
+    // When reviewing, prioritize independent candidates (different agent/model)
+    const hasIndependent = (phase === 'review' && (implAgent || implModel))
+      ? eligibleCandidates.some(c => isCandidateIndependent(c, implAgent, implModel))
+      : false
+
     // Sort by:
-    // 1. Agent priority index in priorityList (lower index = higher priority)
-    // 2. Model score descending
+    // 1. Independence if reviewing (independent reviewer preferred)
+    // 2. Agent priority index in priorityList (lower index = higher priority)
+    // 3. Model score descending
     eligibleCandidates.sort((a, b) => {
+      if (hasIndependent) {
+        const indA = isCandidateIndependent(a, implAgent, implModel) ? 1 : 0
+        const indB = isCandidateIndependent(b, implAgent, implModel) ? 1 : 0
+        if (indA !== indB) return indB - indA
+      }
       const pA = priorityList.indexOf(a.agent)
       const pB = priorityList.indexOf(b.agent)
       if (pA !== pB) return pA - pB
@@ -290,13 +315,23 @@ function route(input) {
   }
 
   // ── 4. Fallback (if no installed agent meets requirement) ─────────────────
+  let fallbackCandidates = []
   for (const agentId of priorityList) {
     const hintModel = AGENT_MODEL_MAP[agentId] ?? 'unknown'
     const canonicalId = resolveModelAlias(registry, hintModel)
     if (meetsRequirement(registry, canonicalId, phase)) {
-      const effort = computeEffort(registry, budget, phase, allowMax)
-      return { agent: agentId, model: canonicalId, effort, execution: 'native' }
+      fallbackCandidates.push({ agent: agentId, model: canonicalId })
     }
+  }
+
+  if (fallbackCandidates.length > 0) {
+    if (phase === 'review' && (implAgent || implModel)) {
+      const independentFallback = fallbackCandidates.filter(c => isCandidateIndependent(c, implAgent, implModel))
+      if (independentFallback.length > 0) fallbackCandidates = independentFallback
+    }
+    const chosen = fallbackCandidates[0]
+    const effort = computeEffort(registry, budget, phase, allowMax)
+    return { agent: chosen.agent, model: chosen.model, effort, execution: 'native' }
   }
 
   const effort = computeEffort(registry, budget, phase, allowMax)
