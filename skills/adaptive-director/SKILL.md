@@ -4,7 +4,7 @@ description: >-
   Adaptive multi-agent director for coding tasks. Use this skill whenever the user
   asks to implement features, fix complex bugs, refactor architecture, or coordinate
   multiple coding agents across planning, implementation, independent review, and verification phases.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Adaptive Director Skill
